@@ -4,8 +4,7 @@
 import argparse
 import os
 from glob import glob 
-from processFinal import Process
-from tools.help import Helper
+from tools.processFinal import Process
 
 
 parser = argparse.ArgumentParser(
