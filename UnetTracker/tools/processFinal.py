@@ -67,7 +67,7 @@ class Process:
         root = glob.glob(os.path.join(self.path,"*.tif"))
 
         if self.saver:
-            self.out = cv2.VideoWriter("videoTracked_{}.avi".format(self.metaData["Prefix"]), cv2.VideoWriter_fourcc(*'MJPG'), 10, (self.width,self.height))
+            self.out = cv2.VideoWriter("videoTracked_{}.avi".format("test"), cv2.VideoWriter_fourcc(*'MJPG'), 10, (self.width,self.height) #self.metaData["Prefix"])
 
         stackCounter = 0
         for j in range(len(root)): #len(root)
