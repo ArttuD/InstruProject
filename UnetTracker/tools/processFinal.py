@@ -60,14 +60,14 @@ class Process:
         img_adapteq = skimage.exposure.equalize_adapthist(imgGray, clip_limit=0.005)
         pImg = np.stack([img_adapteq,img_adapteq,img_adapteq], axis = -1)
 
-        return pImg.astype("uint8")
+        return pImg
 
     def readVideo(self):
         
         root = glob.glob(os.path.join(self.path,"*.tif"))
 
         if self.saver:
-            self.out = cv2.VideoWriter("videoTracked_{}.avi".format("test"), cv2.VideoWriter_fourcc(*'MJPG'), 10, (self.width,self.height)) #self.metaData["Prefix"])
+            self.out = cv2.VideoWriter("videoTracked_{}.avi".format(self.metaData["Prefix"]), cv2.VideoWriter_fourcc(*'MJPG'), 10, (self.width,self.height))
 
         stackCounter = 0
         for j in range(len(root)): #len(root)
