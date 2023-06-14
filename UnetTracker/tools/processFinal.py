@@ -47,7 +47,7 @@ class Process:
             self.metaData["Slices"] = 21
             self.width = 2304
             self.height = 2304
-            
+
         self.detector = Detector(args.path,args.threshold)
         self.tracker = TrackManager(min_count=6,max_count = 2, gating = 75)
 
@@ -62,11 +62,14 @@ class Process:
         self.out.write(self.frame)
 
     def preProcess(self, frame):
-        imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        img_adapteq = skimage.exposure.equalize_adapthist(imgGray, clip_limit=0.005)
-        pImg = np.stack([img_adapteq,img_adapteq,img_adapteq], axis = -1)
+        try:
+            imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            img_adapteq = skimage.exposure.equalize_adapthist(imgGray, clip_limit=0.005)
+            pImg = np.stack([img_adapteq,img_adapteq,img_adapteq], axis = -1)
 
-        return pImg.astype("uint8")
+            return pImg.astype("uint8")
+        except:
+            return pImg
 
     def readVideo(self):
         
