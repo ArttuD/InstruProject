@@ -44,7 +44,7 @@ class Process:
             self.metaData["pixelSize"] = 6.5/(20*0.63)
             self.metaData["Prefix"] = 0
             self.metaData["z-step_um"] = 10
-            self.metaData["z-slices"] = 21
+            self.metaData["Slices"] = 21
         
         self.detector = Detector(args.path,args.threshold)
         self.tracker = TrackManager(min_count=6,max_count = 2, gating = 75)
