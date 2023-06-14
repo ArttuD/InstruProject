@@ -64,7 +64,7 @@ class Process:
         img_adapteq = skimage.exposure.equalize_adapthist(imgGray, clip_limit=0.005)
         pImg = np.stack([img_adapteq,img_adapteq,img_adapteq], axis = -1)
 
-        return pImg
+        return pImg.astype("uint8")
 
     def readVideo(self):
         
