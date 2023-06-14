@@ -14,12 +14,12 @@ class opticalFlow():
 
         #parse args
         self.path = args.path
-        self.mode = self.mode
+        self.mode = args.mode
 
-        self.saver = args.saver
+        self.saver = args.save
         self.vis = args.vis
 
-        self.savePath = args.save
+        self.savePath = args.savePath
 
         #defaults, read this form meta later
         self.pixelSize = 6.5/(20)
@@ -43,11 +43,20 @@ class opticalFlow():
         self.threshold = 99.75e-2
         self.time = 0
 
+        self.tuned = False
+
     def createrSaver(self):
         self.out = cv2.VideoWriter(os.path.join(self.savePath,'video_{}_{}_{}.avi'.format(self.mode,self.level,self.channel)), cv2.VideoWriter_fourcc('M','J','P','G'), 5, (750,750))
 
     def saveVideo(self, frame):
         self.out.write(frame)
+
+    def preProcess(self, frame):
+        imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        img_adapteq = skimage.exposure.equalize_adapthist(imgGray, clip_limit=0.005)
+        pImg = np.stack([img_adapteq,img_adapteq,img_adapteq], axis = -1)
+
+        return pImg.astype("uint8")
 
     def pipe(self):
 
@@ -65,10 +74,11 @@ class opticalFlow():
             channel = parts[2]
             running = int(parts[3][:-4])
             frame = cv2.imread(root[j])#/256).astype('uint8')
-
+            frame = self.preProcess(frame)
             #print("Num ", int(running), "Channel ", channel, "number ", j )
             if (self.mode == "of") & (self.level == running) & (self.channel == channel):
                 rep,img = self.opticalFlow(frame, stackCounter)
+                print("Done", self.time, "/20" )
                 stackCounter += 1
                 if (self.vis) & (rep != -1) :
                     cv2.imshow("window",img)
@@ -76,10 +86,11 @@ class opticalFlow():
                     if k == ord("q"):
                         break
             elif (self.mode == "ve") & (self.level == running) & (self.channel == channel):
-                if stackCounter==0:
+                if (stackCounter==0) & (self.tuned == False):
                     self.tuneThreshold(frame)
                 rep, img = self.volumeEstimate(frame, stackCounter)
                 stackCounter += 1
+                print("round ", stackCounter)
                 if (self.vis) & (rep != -1) :
                     cv2.imshow("window",img)
                     k = cv2.waitKey(1) & 0xff
@@ -92,6 +103,7 @@ class opticalFlow():
                 rep, img = self.volumeFL(frame, stackCounter)
                 print("Round", stackCounter)
                 stackCounter += 1
+
                 if (self.vis) & (rep != -1) :
                     cv2.imshow("window",img)
                     k = cv2.waitKey(1) & 0xff
@@ -345,14 +357,15 @@ class opticalFlow():
             tmp =  processImg(frame, Th_slider.val)
             HANDLE.set_data(tmp)
             fig.canvas.draw_idle()
+            print("updated", Th_slider.val)
 
         Th_slider.on_changed(update)
         
+        plt.show()
         
-        plt.show(block=True)
-        
-
         self.threshold = Th_slider.val
+        self.tuned = True
+
 
     def saveJson(self,saveFile):
         print("In saver")
