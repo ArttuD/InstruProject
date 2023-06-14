@@ -69,7 +69,7 @@ class Process:
 
             return pImg.astype("uint8")
         except:
-            return pImg
+            return frame
 
     def readVideo(self):
         
