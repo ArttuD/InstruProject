@@ -27,8 +27,9 @@ def saver(root, fig_path, area, perimeter, fb, cutThreshold, indexCell, fig, mas
 
     parts = os.path.split(fig_path)[0].split(os.sep)
     cell_line = parts[1]
-    time = parts[2]
-    save_folder = os.path.join(result_main,os.path.join(cell_line,time))
+    condition = parts[2]
+    time = parts[3]
+    save_folder = os.path.join(result_main,os.path.join(cell_line,condition,time))
 
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
@@ -182,7 +183,7 @@ def segmentImg(img, edges, final_boundaries, cutThreshold, idx):
     return fig, area, perimeter, largest, mask
 
 def loadJson(path):
-
+    #print(path)
     f = open(path)
     data = json.loads(f.read())
     #print(data)
@@ -203,12 +204,16 @@ def loadJson(path):
         
     #print(len(dataRep), len(data["shapes"]))
     if len(data["shapes"]) > 1:
-        return np.array(dataRep), len(data["shapes"])
+        for i in range(len(data["shapes"])):
+            shapes = dataRep[i][0].shape
+            if shapes[0] < 2:
+                del dataRep[i]
+        return dataRep, len(dataRep)
     else:
-        return np.array(dataRep), len(data["shapes"])
+        return dataRep, len(dataRep)
 
 def loadNpy(path): 
-    
+    #print(path)
     Imgcnt = np.load(path)
     contours, hierarchy = cv2.findContours(image=Imgcnt[:,:,2], mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
     
@@ -217,7 +222,11 @@ def loadNpy(path):
 def findId(path):
     
     parts = path.split("\\")
-    mag = parts[-1].split("_")[0][:-1]
+    if len(parts[-1].split("_")[0]) > 2:
+        mag = parts[-1].split("_")[0][:-1]
+    else:
+        mag = parts[-1].split("_")[0]
+
     if "10" in mag:
         m = 0.46
     elif "20" in mag:
@@ -231,11 +240,17 @@ def findId(path):
     cellLabel = parts[1]
     day = parts[0].split("/")[-2].split("_")[0] #parts[2]
     conc = parts[0].split("/")[-2].split("_")[1] #parts[3]
-    time = float(parts[2][:-1])
+    condition = parts[2]
+    if len(parts[3])>4:
+        time = float(parts[3][:-5])
+    else:
+        time = float(parts[3][:-1])
     ending = parts[-1].split(".")[1]
+
+    # condition = parts[2]
+    # time = parts[3]
     
-    
-    return cellLabel, day, conc, time, m, ending
+    return cellLabel, day, conc, time, m, ending, condition
 
 def processContour(contours,j):
     data = contours[j]
@@ -304,10 +319,11 @@ def PCA_decomposition(data_dict):
 
     return data_dict
 
-def PCA_and_viz(dict, feature, hue_label):
+def PCA_and_viz(dict, feature, hue_label, IDs):
 
     headerR = np.array(list(map(lambda x: "r_" + x,np.arange(50).astype("str"))))
     headerPhi = np.array(list(map(lambda x: "p_" + x, np.arange(50).astype("str"))))
+
     extra = np.array(['label', 'day', 'conc', 'time', 'runNum', 'expr', 'pixelSize'])
     tempDict = {}
 
@@ -379,7 +395,7 @@ def PCA_and_viz(dict, feature, hue_label):
     #ax[1,2].bar(np.arange(0,len(weights[0,1::2])),weights[2,1::2], label = "y-3", alpha = 0.5)
     ax[1,2].legend()
     ax[1,2].set_xlabel("Frequency [Hz]")
-
+    fig.savefig(os.path.join("./data", "PCA_{}_{}_{}".format(IDs[0],IDs[1],IDs[2])))
     return pca, df_pca, components
 
 
@@ -387,11 +403,11 @@ def pipe(datas, experiment_number):
 
     data_dict = {"path":[], "areas": [], "perimeter": [] ,"label":[],"day":[],
                  "conc":[],"cnt":[], "pixelSize": [], "time":[], "runNum":[], 
-                 "expr":[], "ending": []} 
+                 "expr":[], "ending": [], "condition": []} 
     
     for i in datas:
         #print(i)
-        label, day, conc, time, m, ending = findId(i)
+        label, day, conc, time, m, ending, condition = findId(i)
 
         if ending == "npy":
             cnt, contour = loadNpy(i)
@@ -423,15 +439,19 @@ def pipe(datas, experiment_number):
                 data_dict["conc"].append(conc)
                 data_dict["expr"].append(experiment_number)
                 data_dict["ending"].append(ending)
+                data_dict["condition"].append(condition)
 
         data_dict = PCA_decomposition(data_dict)
 
     return data_dict
 
 def parse_dict(data_dict):
-    key_list = ["time", "areas", "label", "perimeter", "day", "expr", "ending", "pixelSize"]
+
+    key_list = ["time", "conc", "condition", "areas", "label", "perimeter", "day", "expr", "ending", "pixelSize", "pw_tot"]
+
     df = pd.DataFrame()
     for i in key_list:
+        print(i)
         df[i] = np.array(data_dict[i])
 
     return df
