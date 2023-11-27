@@ -272,9 +272,9 @@ def sample_freqs(data,j):
     xx = data[:,0,:]
     xx = (xx.astype(np.float32)-np.mean(xx,axis=0)[None,...])/np.std(xx,axis=0)[None,...]
 
-    r = np.diff(scipy.ndimage.gaussian_filter(np.sqrt(xx[:,0]**2 + xx[:,1]**2),2))
+    r = scipy.signal.detrend(scipy.ndimage.gaussian_filter(np.sqrt(xx[:,0]**2 + xx[:,1]**2),2))
     #phi = np.diff(scipy.signal.detrend(scipy.ndimage.gaussian_filter(np.unwrap(np.arctan2(xx[:,0],xx[:,1])),2)))
-    phi = np.diff(scipy.ndimage.gaussian_filter(np.unwrap(np.arctan2(xx[:,0],xx[:,1])),2))
+    phi = scipy.signal.detrend(scipy.ndimage.gaussian_filter(np.unwrap(np.arctan2(xx[:,0],xx[:,1])),2))
     xxPolar = np.stack((r,phi), axis = 1)
 
     t = np.arange(len(r))
@@ -319,12 +319,14 @@ def PCA_decomposition(data_dict):
 
     return data_dict
 
-def PCA_and_viz(dict, feature, hue_label, IDs):
+
+def PCA_and_viz(df, data_dict, feature, hue_label):
+
 
     headerR = np.array(list(map(lambda x: "r_" + x,np.arange(50).astype("str"))))
     headerPhi = np.array(list(map(lambda x: "p_" + x, np.arange(50).astype("str"))))
 
-    extra = np.array(['label', 'day', 'conc', 'time', 'runNum', 'expr', 'pixelSize'])
+    extra = np.array(['label', 'day', 'conc', 'condition', 'time', 'sample_type', 'expr', 'pixelSize', 'range'])
     tempDict = {}
 
     for i in range(50):
@@ -333,70 +335,98 @@ def PCA_and_viz(dict, feature, hue_label, IDs):
         else:
             tempDict[headerPhi[i]] = []
         
-    for i in range(len(dict["pw_tot"])):
+    for i in range(len(data_dict["pw_tot"])):
         for j in range(50):
             if feature == "R":
-                tempDict[headerR[j]].append(dict["pw_tot"][i][j,0])
+                tempDict[headerR[j]].append(data_dict["pw_tot"][i][j,0])
             else:
-                tempDict[headerPhi[j]].append(dict["pw_tot"][i][j,1])
+                tempDict[headerPhi[j]].append(data_dict["pw_tot"][i][j,1])
 
     df_pca = pd.DataFrame()
 
     for i in extra:
-        df_pca[i] = dict[i]
+        df_pca[i] = df[i]
 
     for i in tempDict.keys():
         df_pca[i] = normalize(np.array(tempDict[i]))
+        #df_pca[i] = np.array(tempDict[i])
 
-    df_pca = df_pca.replace(np.nan, 0)
+    counter = 0
+    PCA_list = []
+    
+    for tags, k in df_pca.groupby(["sample_type","condition", "range"]):
 
-    fig, ax = plt.subplots(2, 3,figsize=(16, 10),facecolor='white')
+        fig, ax = plt.subplots(2, 3,figsize=(16, 10),facecolor='white')
 
-    pca, components = performPCA(df_pca)
+        fig.suptitle("PCA_{}_{}_{}".format(tags[1],tags[0], tags[2])) #,tags[2]
 
-    comp = pd.DataFrame(components, columns = ['1','2', '3'])
+        k = k.reset_index()
+        for i in tempDict.keys():
+            #df_pca[i] = normalize(np.array(tempDict[i]))
+            k[i] = normalize(k[i].values)
 
-    comp["label"] = df_pca["label"]
-    comp["time"] = df_pca["time"]
-    comp["pixelSize"] = df_pca["pixelSize"]
+        k = k.replace(np.nan, 0)
 
-    total_var = pca.explained_variance_ratio_.sum() * 100
+        pca, components = performPCA(k, len(extra))
 
-    ax[0,0].set_title("{} hours: explained {:.2f}%".format(i, total_var))
-    ax[0,0].set_xlabel("1st component")
-    ax[0,0].set_ylabel("2nd component")
-    sns.scatterplot(x='1', y='2', data=comp, ax = ax[0,0], hue=hue_label)
-    ax[0,0].legend(loc='upper right')
+        comp = pd.DataFrame(components, columns = ['1','2','3'])
 
-    ax[0,1].set_xlabel("2nd component")
-    ax[0,1].set_ylabel("3rd component")
-    sns.scatterplot(x='2', y='3', data=comp, ax = ax[0,1], hue=hue_label)
-    ax[0,1].legend(loc='upper right')
+        comp["label"] = k["label"]
+        comp["time"] = k["time"]
+        comp["pixelSize"] = k["pixelSize"]
+        comp["range"] = tags[2]
+        comp["sample_type"] = tags[0]
+        comp["condition"] = tags[1]
+        
+        total_var = pca.explained_variance_ratio_.sum() * 100
 
+        ax[0,0].set_title("PCA components: explain {:.2f}%".format(total_var))
+        ax[0,0].set_xlabel("1st component")
+        ax[0,0].set_ylabel("2nd component")
+        sns.scatterplot(x='1', y='2', data=comp, ax = ax[0,0], hue=hue_label)
+        ax[0,0].legend(loc='upper right')
 
-    ax[0,2].set_xlabel("1st component")
-    ax[0,2].set_ylabel("3rd component")
-    sns.scatterplot(x='1', y='3', data=comp, ax = ax[0,2], hue=hue_label)
-    ax[0,2].legend(loc='upper right')
+        ax[0,1].set_xlabel("2nd component")
+        ax[0,1].set_ylabel("3rd component")
+        sns.scatterplot(x='2', y='3', data=comp, ax = ax[0,1], hue=hue_label)
+        ax[0,1].legend(loc='upper right')
 
-    print('In {} hours, total Explained Variance: {}%'.format(i,total_var))
+        ax[0,2].set_xlabel("1st component")
+        ax[0,2].set_ylabel("3rd component")
+        sns.scatterplot(x='1', y='3', data=comp, ax = ax[0,2], hue=hue_label)
+        ax[0,2].legend(loc='upper right')
 
-    weights = pca.components_
+        weights = pca.components_
 
-    ax[1,0].bar(np.arange(0,len(weights[0,::2])),weights[0,::2], label = "y-1", alpha = 0.5)
-    #ax[1,0].bar(np.arange(0,len(weights[0,1::2])),weights[0,1::2], label = "y-1", alpha = 0.5)
-    ax[1,0].legend()
+        ax[1,0].set_title("PCA wights")
+        ax[1,0].bar(np.arange(0,len(weights[0,::2])),weights[0,::2], label = "y-1", alpha = 0.5)
+        #ax[1,0].bar(np.arange(0,len(weights[0,1::2])),weights[0,1::2], label = "y-1", alpha = 0.5)
+        ax[1,0].legend()
 
-    ax[1,1].bar(np.arange(0,len(weights[0,::2])),weights[1,::2], label = "y-2", alpha = 0.5)
-    #ax[1,1].bar(np.arange(0,len(weights[0,1::2])),weights[1,1::2], label = "y-2", alpha = 0.5)
-    ax[1,1].legend()
+        ax[1,1].bar(np.arange(0,len(weights[0,::2])),weights[1,::2], label = "y-2", alpha = 0.5)
+        #ax[1,1].bar(np.arange(0,len(weights[0,1::2])),weights[1,1::2], label = "y-2", alpha = 0.5)
+        ax[1,1].legend()
 
-    ax[1,2].bar(np.arange(0,len(weights[0,::2])),weights[2,::2], label = "y-3", alpha = 0.5)
-    #ax[1,2].bar(np.arange(0,len(weights[0,1::2])),weights[2,1::2], label = "y-3", alpha = 0.5)
-    ax[1,2].legend()
-    ax[1,2].set_xlabel("Frequency [Hz]")
-    fig.savefig(os.path.join("./data", "PCA_{}_{}_{}".format(IDs[0],IDs[1],IDs[2])))
-    return pca, df_pca, components
+        ax[1,2].bar(np.arange(0,len(weights[0,::2])),weights[2,::2], label = "y-3", alpha = 0.5)
+        #ax[1,2].bar(np.arange(0,len(weights[0,1::2])),weights[2,1::2], label = "y-3", alpha = 0.5)
+        ax[1,2].legend()
+
+        ax[1,2].set_xlabel("Var [Idx]")
+        ax[1,2].set_xlabel("Var [Idx]")
+        ax[1,2].set_xlabel("Var [Idx]")
+
+        fig.savefig(os.path.join("./data", "PCA_{}_{}_{}".format(tags[0],tags[1], tags[2]))) #
+
+        PCA_list.append(pca)
+        if counter == 0:
+            df_out  = k
+            components_out = comp
+        else:
+            df_out = pd.concat((df_out, k))
+            components_out = pd.concat((components_out, comp))
+        counter += 1
+    
+    return PCA_list, df_out, components_out
 
 
 def pipe(datas, experiment_number):
@@ -447,19 +477,18 @@ def pipe(datas, experiment_number):
 
 def parse_dict(data_dict):
 
-    key_list = ["time", "conc", "condition", "areas", "label", "perimeter", "day", "expr", "ending", "pixelSize", "pw_tot"]
+    key_list = ["time", "conc", "condition", "areas", "label", "perimeter", "day", "expr", "ending", "pixelSize"]
 
     df = pd.DataFrame()
     for i in key_list:
-        print(i)
         df[i] = np.array(data_dict[i])
 
     return df
 
-def performPCA(df):
+def performPCA(df,num ):
     pca = PCA(n_components=3,whiten = True)
-    pca = pca.fit(df[df.keys()[7:]])
-    components = pca.fit_transform(df[df.keys()[7:]])
+    pca = pca.fit(df[df.keys()[(num+1):]])
+    components = pca.fit_transform(df[df.keys()[(num+1):]])
     return pca, components
     
 """

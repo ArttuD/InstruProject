@@ -1,23 +1,21 @@
 functions {
    /* ... function declarations and definitions ... */
-   vector func(vector x, real a, real b, real c, real d, real q, real v){
-      return to_vector(rep_vector(1,size(x)).*(a+b./pow(c+q*exp(-(x-c)./d),1./v)));
+   vector func(vector x, real a, real b, real c, real d){
+      return a + b./(1+exp(-(x-c)./d));
    }
 
 }
 data {
     // counts
    int N;
-   int N_day;
-   int N_conc;
-   int N_cell_type;
+   int N_hat;
+
    // data
    vector[N] time;
    vector[N] area;
    // indicator vectors
-   int cell_type_indices[N];
-   int day_indices[N];
-   int conc_indices[N];
+
+   vector[N_hat] x_hat;
 }
 
 //,a,k,c,q,b,v
@@ -25,22 +23,33 @@ parameters {
    //real<lower = 0> mu_std; 
    real<lower = 0> sigma_std;
    real a;
-   real b;
-   real c;
-   real d;
-   real q;
-   real<lower=0> v;
+   real<lower = 0> b;
+   real<lower = 0> c;
+   real<lower = 0> d;
 
+}
+transformed parameters {
+   vector[N] slope = func(time, a, b, c, d);
 }
 model {
    /* ... declarations ... statements ... */
-   sigma_std ~ std_normal();
-   a ~ std_normal();
-   b ~ std_normal();
-   c ~ std_normal();
-   d ~ std_normal();
-   q ~ std_normal();
-   v ~ std_normal();
-   area ~ normal(func(time,  a, b, c, d, q, v), sigma_std);
+
+   sigma_std ~ normal(0,2);
+   a ~ normal(0,1);
+   b ~ normal(1,1);
+   c ~ normal(0,1);
+   d ~ normal(0,1);
+
+   area ~ normal(slope, sigma_std);
+}
+generated quantities {
+   vector[N] log_lik;
+   real y_hat[N_hat];
+
+   for (i in 1:N){
+      log_lik[i] = normal_lpdf(area[i] | slope[i], sigma_std);
+   }
+   y_hat = normal_rng(func(x_hat, a, b, c, d), sigma_std);
+
 }
 
