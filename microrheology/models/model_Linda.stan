@@ -7,6 +7,7 @@
 // 3. normalize the parameters of interest - z-score normalizing (all data together for now) - only for model stabilitu
 // 4. make a dictionary out of the dataframe, because in C language (which is used for models) it doesnt have dataframe
 
+
 //dictionary
 data
 {
