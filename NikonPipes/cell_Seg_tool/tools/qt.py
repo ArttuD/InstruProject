@@ -9,7 +9,6 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import QImage, QPixmap
 
-import multiprocessing as mp
 
 import sys
 import argparse
@@ -20,18 +19,15 @@ import os
 import datetime
 import ffmpeg
 
+from worker import Worker
 
 class App(QWidget):
-
-    process_signal = pyqtSignal(int) 
 
     def __init__(self, args):
         super().__init__()
 
         #Control threads
         self.ctrl = {}
-        self.ctrl['break'] = False
-        self.ctrl['mode'] = None
         
         self.args = args
         self.path = args.path
@@ -50,6 +46,8 @@ class App(QWidget):
         self.clicked_clicks = []
         self.num_clicks = 0
         #self.cam.showProperties()
+
+        self.worker = Worker(self.ctr, args.path)
 
 
     def initUI(self):
@@ -91,8 +89,6 @@ class App(QWidget):
         self.pen = QtGui.QPen()
         self.pen.setWidth(5)
         self.pen.setColor(QtGui.QColor("#EB5160")) 
-
-
         self.win.show()
 
 
@@ -121,6 +117,7 @@ class App(QWidget):
         self.hlabels.setSpacing(0)
 
 
+
     def set_black_screen(self):
 
         background = np.zeros((self.im_width, self.im_height))
@@ -135,14 +132,18 @@ class App(QWidget):
         File save path
         """
 
+        self.ID_field = QSpinBox()
+        self.ID_field.setFixedSize(int(self.width*1/7),50)
+
         self.textField = QTextEdit(self.args.path)
-        self.textField.setFixedSize(int(self.width/2),50)
+        self.textField.setFixedSize(int(self.width*3/7),50)
 
         self.printLabel = QLabel("Print Field")
    
-        self.printLabel.setFixedSize(int(self.width/2),50)
+        self.printLabel.setFixedSize(int(self.width*3/7),50)
         self.printLabel.setStyleSheet("background-color: white")
 
+        self.htext.addWidget(self.ID_field)
         self.htext.addWidget(self.textField)
         self.htext.addWidget(self.printLabel)
 
@@ -157,12 +158,27 @@ class App(QWidget):
         """
         Create and connect buttons, sliders, and check box
         """
+
+        self.check_single = QCheckBox("single cell")
+        self.check_single.stateChanged.connect(self.check_single_func)
+        self.hbutton.addWidget(self.check_single)
+
+        self.check_vector = QCheckBox("protrusion")
+        self.check_vector.stateChanged.connect(self.check_vector_func)
+        self.hbutton.addWidget(self.check_vector)
+
         #Start measurement
         self.btn_load = QPushButton("load")
         self.btn_load.pressed.connect(self.load)
         self.btn_load.setStyleSheet("background-color : green")
         self.hbutton.addWidget(self.btn_load)
 
+        #Close Gui
+        self.btn_save = QPushButton("save")
+        self.btn_save.pressed.connect(self.save)
+        self.btn_save.setStyleSheet("background-color : red")
+        self.hbutton.addWidget(self.btn_save)
+        
         #Close Gui
         self.btn_close = QPushButton("close")
         self.btn_close.pressed.connect(self.close)
@@ -254,6 +270,7 @@ class App(QWidget):
             self.ctr["vector"] = False
     
     def t_down(self):
+        self.read()
         return 0
     
     def t_up(self):
@@ -272,26 +289,37 @@ class App(QWidget):
 
             self.num_clicks += 1
             self.clicked_clicks.append([click.pos().x(),click.pos().y()])
-            if self.num_clicks == 2:
-                self.draw_vector()
 
+            if self.num_clicks == 2:
+                self.draw_vector(self.label.pixmap(), self.clicked_clicks)
                 self.num_clicks = 0
                 self.clicked_clicks = []
 
-    
-    @pyqtSlot(np.ndarray)
-    def setImage(self, image):
-        """
-        Image signal pipe
-        """
+    def save(self):
+        self.worker.save_data()
 
-        self.imgCounter += 1
-        image = (image/ 255).astype(np.uint8)
+    def draw_vector(self, canvas, points):
 
-        q_image = QImage(image, image.shape[1], image.shape[0], image.shape[1] * 1, QImage.Format.Format_Grayscale8)
-        pixmap = QPixmap.fromImage(q_image)
-        p = pixmap.scaled(720, 720) 
-        self.label.setPixmap(p)
+        painter = QtGui.QPainter(canvas)
+        painter.setPen(self.pen)
+        painter.drawLine(points[0][0], points[0][1], points[1][0], points[1][1])
+        painter.end()
+
+        self.label.setPixmap(canvas)
+
+
+    def check_single_func(self, state):
+        if state == 0:
+            self.ctr["single"] = False
+        else:
+            self.ctr["single"] = True
+
+
+    def check_vector_func(self, state):
+        if state == 0:
+            self.ctr["vector"] = False
+        else:
+            self.ctr["vector"] = True
 
 
 if __name__ == "__main__":
