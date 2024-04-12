@@ -1,7 +1,6 @@
-from PyQt6 import QtWidgets, QtCore, QtGui
-from PyQt6.QtCore import Qt, pyqtSlot, pyqtSignal
+from PyQt6 import QtCore, QtGui
+from PyQt6.QtCore import Qt, QPoint
 
-from PyQt6.QtCore import QPoint, pyqtSignal, QThread, pyqtSlot as Slot
 from PyQt6.QtGui import QImage
 
 from PyQt6.QtWidgets import QApplication
@@ -18,6 +17,12 @@ import time
 import os
 import datetime
 import ffmpeg
+import cv2
+
+import pandas as pd
+import csv
+
+from nd2reader import ND2Reader
 
 from worker import Worker
 
@@ -25,9 +30,6 @@ class App(QWidget):
 
     def __init__(self, args):
         super().__init__()
-
-        #Control threads
-        self.ctrl = {}
         
         self.args = args
         self.path = args.path
@@ -37,18 +39,41 @@ class App(QWidget):
         self.width = 1000; self.height = 1000
         self.im_width = 720; self.im_height = 720
 
-        self.process_flag = False
+
+        self.ctr = {"track": False, "vector": False}
+        self.worker = Worker(args.path, self.ctr)
 
         #cfg GUI
         self.initUI()
-
 
         self.clicked_clicks = []
         self.num_clicks = 0
         #self.cam.showProperties()
 
-        self.worker = Worker(self.ctr, args.path)
+        self.c=0
+        self.t=0
+        self.z=0
+        self.x=0
+        self.y=0
+        self.v=0
+        self.cell_ID = 0
 
+        self.video_path = "E:/instru_projects/TimeLapses/240311_timelapses_3lines_spheroidseeded96h001.nd2"
+        self.result_path = os.path.join(self.path, "results")
+
+        self.createAndCheckFolder(self.result_path)
+
+        self.dataDict = self.load_source()
+
+        self.max_load = len(self.dataDict["file_name"])
+
+        with ND2Reader(self.video_path) as images:
+            self.meta = images.metadata
+
+        self.z_stop = self.meta['z_levels'].stop
+        self.t_stop = self.meta['num_frames']
+
+        self.printLabel.setText("let's go!")
 
     def initUI(self):
         
@@ -102,6 +127,24 @@ class App(QWidget):
         self.label.setPixmap(canvas)
 
 
+    def load_source(self):
+
+        data_dict = {"file_name": [], "channel":[], "ON": [], "location": [], "z-level": [],  "time_start": [] }
+
+        with open(os.path.join(self.path, "Test.csv"), newline='') as csvfile:
+            spamreader = csv.reader(csvfile, delimiter=',')
+            for count, row in enumerate(spamreader):
+                if count == 0:
+                    continue
+
+                if len(row) < 7:
+                    self.printLabel.setText("{} is incorrect".format(count))
+                    continue
+                
+                for idx, i in enumerate(data_dict.keys()):
+                    data_dict[i].append(row[idx])
+
+        return data_dict
 
     def cfg_image(self):
         """
@@ -132,8 +175,19 @@ class App(QWidget):
         File save path
         """
 
+        self.file_field_Label = QLabel("Row File")
+        self.file_field = QSpinBox()
+        self.file_field.setFixedSize(int(self.width*1/7),50)
+        self.htext.addWidget(self.file_field_Label)
+        self.htext.addWidget(self.file_field)
+
+        self.ID_field_Label = QLabel("Cell ID")
         self.ID_field = QSpinBox()
         self.ID_field.setFixedSize(int(self.width*1/7),50)
+        self.htext.addWidget(self.ID_field_Label)
+        self.htext.addWidget(self.ID_field)
+
+        self.cell_ID = self.ID_field.value()
 
         self.textField = QTextEdit(self.args.path)
         self.textField.setFixedSize(int(self.width*3/7),50)
@@ -143,7 +197,7 @@ class App(QWidget):
         self.printLabel.setFixedSize(int(self.width*3/7),50)
         self.printLabel.setStyleSheet("background-color: white")
 
-        self.htext.addWidget(self.ID_field)
+
         self.htext.addWidget(self.textField)
         self.htext.addWidget(self.printLabel)
 
@@ -160,11 +214,11 @@ class App(QWidget):
         """
 
         self.check_single = QCheckBox("single cell")
-        self.check_single.stateChanged.connect(self.check_single_func)
+        self.check_single.stateChanged.connect(self.track_state)
         self.hbutton.addWidget(self.check_single)
 
         self.check_vector = QCheckBox("protrusion")
-        self.check_vector.stateChanged.connect(self.check_vector_func)
+        self.check_vector.stateChanged.connect(self.vector_state)
         self.hbutton.addWidget(self.check_vector)
 
         #Start measurement
@@ -184,14 +238,6 @@ class App(QWidget):
         self.btn_close.pressed.connect(self.close)
         self.btn_close.setStyleSheet("background-color : red")
         self.hbutton.addWidget(self.btn_close)
-
-        #track
-        self.track = QCheckBox("Track")
-        self.track.stateChanged.connect(self.track_state)
-        
-        #track
-        self.vector = QCheckBox("vector")
-        self.vector.stateChanged.connect(self.vector_state)
 
         #Start measurement
         self.btn_z_down = QPushButton("<- z-level")
@@ -219,20 +265,33 @@ class App(QWidget):
 
     def load(self):
 
-        """
-        Start measurement
-            -Fetch path
-            -start current driver and camera
-        """
+        self.clicked_clicks = []
+        self.num_clicks = 0
 
-        self.btnStart.setStyleSheet("background-color : white")
+        if self.file_field.value() == self.max_load-1:
+            self.save()
+            self.printLabel.setText("file Done!")
+            self.file_field.setValue(int(0))
+            self.c= int(self.dataDict["channel"][self.file_field.value()])
+            self.t= int(self.dataDict["time_start"][self.file_field.value()])
+            self.z= int(self.dataDict["z-level"][self.file_field.value()])
+            self.x=0
+            self.y=0
+            self.v= int(self.dataDict["location"][self.file_field.value()])
+            self.cell_ID = int(self.dataDict["ON"][self.file_field.value()])
+        else: 
+            #self.worker.path_frame =  self.dataDict["file_name"][self.file_field.value()]
+            self.c= int(self.dataDict["channel"][self.file_field.value()])
+            self.t= int(self.dataDict["time_start"][self.file_field.value()])
+            self.z= int(self.dataDict["z-level"][self.file_field.value()])
+            self.x=0
+            self.y=0
+            self.v= int(self.dataDict["location"][self.file_field.value()])
+            self.cell_ID = int(self.dataDict["ON"][self.file_field.value()])
 
-        self.process_flag = True
+        self.ID_field.setValue(self.cell_ID)
 
-        self.createAndCheckFolder(self.textField.toPlainText())
-
-        self.printLabel.setText("Measurement started")
-        self.process.start()
+        self.load_frame()
         
 
     def close(self):
@@ -244,19 +303,16 @@ class App(QWidget):
         self.btn_close.setStyleSheet("background-color : white")
         self.printLabel.setText("Closing, wait")
 
-        if self.process_flag:
-            print("test")
-
         self.btn_load.setStyleSheet("background-color : green")
         self.btn_close.setStyleSheet("background-color : red")
 
-        self.process_flag = False
         self.set_black_screen()
 
         self.printLabel.setText("Ready for the new round!\nPlease remember change the path")
         exit(0)
 
     def track_state(self, state):
+
         if state == 2:
             self.ctr["track"] = True 
         else:
@@ -270,33 +326,92 @@ class App(QWidget):
             self.ctr["vector"] = False
     
     def t_down(self):
-        self.read()
+
+        if self.t >0:
+            self.t -= 1
+
+        self.load_frame()
+
         return 0
     
     def t_up(self):
+
+        if self.t < (self.t_stop):
+            if ((self.ctr["track"]) |  (self.ctr["vector"])) & (self.t == (self.t_stop-1)):
+    
+                
+                self.clicked_clicks = []
+                self.num_clicks = 0
+
+                self.file_field.setValue(self.file_field.value() + 1)
+                if self.file_field.value() == self.max_load:
+                    self.save()
+                    self.printLabel.setText("file Done!")
+                    self.file_field.setValue(int(0))
+                    self.c= int(self.dataDict["channel"][self.file_field.value()])
+                    self.t= int(self.dataDict["time_start"][self.file_field.value()])
+                    self.z= int(self.dataDict["z-level"][self.file_field.value()])
+                    self.x=0
+                    self.y=0
+                    self.v= int(self.dataDict["location"][self.file_field.value()])
+                    self.cell_ID = int(self.dataDict["ON"][self.file_field.value()])
+                else:
+                    #self.worker.path_frame =  self.dataDict["file_name"][self.file_field.value()]
+                    self.c= int(self.dataDict["channel"][self.file_field.value()])
+                    self.t= int(self.dataDict["time_start"][self.file_field.value()])
+                    self.z= int(self.dataDict["z-level"][self.file_field.value()])
+                    self.x=0
+                    self.y=0
+                    self.v= int(self.dataDict["location"][self.file_field.value()])
+                    self.cell_ID = int(self.dataDict["ON"][self.file_field.value()])
+
+                    self.ID_field.setValue(self.cell_ID)
+            else:
+                self.t += 1
+
+        self.load_frame()
         return 0
 
     def z_down(self):
+
+        if self.z > 0:
+            self.z -= 1
+
+        self.load_frame()
+
         return 0
     
     def z_up(self):
+        if self.z < self.z_stop:
+            self.z += 1
+
+        self.load_frame()
+
         return 0
     
     def click_label(self, click):
         if click.button() == QtCore.Qt.MouseButton.LeftButton:
-            print(click.pos().x(),click.pos().y())
-            self.track_painter(self.label.pixmap(), click.pos().x(),click.pos().y())
 
+            self.track_painter(self.label.pixmap(), click.pos().x(),click.pos().y())
             self.num_clicks += 1
             self.clicked_clicks.append([click.pos().x(),click.pos().y()])
 
-            if self.num_clicks == 2:
-                self.draw_vector(self.label.pixmap(), self.clicked_clicks)
+            if self.ctr["track"]:
+                self.worker.update_points(click.pos().x(),click.pos().y(), self.ID_field.value(), self.file_field.value(), self.t, self.z, self.v)
+
+            if (self.num_clicks == 2) :
+                if (self.ctr["vector"]):
+
+                    self.worker.update_vector(self.clicked_clicks, self.ID_field.value(), self.file_field.value(), self.t, self.z, self.v)
+                    self.draw_vector(self.label.pixmap(), self.clicked_clicks)
+
                 self.num_clicks = 0
                 self.clicked_clicks = []
 
     def save(self):
-        self.worker.save_data()
+        print("saving!")
+        self.textField.setText("{}_{}_track.csv".format(self.path, id))
+        self.worker.save_data(self.file_field.value(), self.ctr)
 
     def draw_vector(self, canvas, points):
 
@@ -307,24 +422,27 @@ class App(QWidget):
 
         self.label.setPixmap(canvas)
 
+    def load_frame(self):
 
-    def check_single_func(self, state):
-        if state == 0:
-            self.ctr["single"] = False
-        else:
-            self.ctr["single"] = True
+        self.printLabel.setText("Loaded chan: {}, time {}, stack {}, loc: {}".format(self.c, self.t, self.z, self.v))
 
+        with ND2Reader(self.video_path) as images:
+            img = images.get_frame_2D(c=self.c, t=self.t, z=self.z, x=self.x, y=self.y, v=self.v)
 
-    def check_vector_func(self, state):
-        if state == 0:
-            self.ctr["vector"] = False
-        else:
-            self.ctr["vector"] = True
+        img = (img/256).astype("uint8")
+        img = cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX)
+        h, w = img.shape
+        bytesPerLine = 1 * w
+        p = QImage(img,w, h, bytesPerLine, QImage.Format.Format_Grayscale8)
+        p = p.scaled(self.im_width, self.im_height)
+
+        self.label.setPixmap(QPixmap(QPixmap.fromImage(p)))  
+
 
 
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("-p", "--path", default= "./", required= False ,help="path and name of output video")
+    argParser.add_argument("-p", "--path", default= "E:/instru_projects", required= False ,help="path and name of output video")
 
     args = argParser.parse_args()
 
