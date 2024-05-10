@@ -1148,6 +1148,122 @@ class LabelMap(object):
         return self._get_location(six.b("CustomDataVar|AppInfo_V1_0!"))
     
 
+
+def calc_MSD_theta_tau(data, tau, dt):
+
+    x = data["x"] - data["x"][0]
+    y = data["y"] - data["y"][0]
+
+    dx = np.gradient(x)
+    dy = np.gradient(y)
+
+    d_theta = np.zeros(len(x))
+    idx_theta = 1 
+
+    MSD = np.zeros(len(x))
+    ACF = np.zeros(len(x))
+
+    velocity_tau = np.zeros((len(x),2))
+    velocity_2tau = np.zeros((len(x),2))
+
+
+    for idx in np.arange(len(x)):
+
+        if idx+2*tau >= len(x):
+
+            if idx+tau >= len(x):
+                break
+            velocity_tau[idx,0] = (x[idx+tau]-x[idx])/(tau*dt)
+            velocity_tau[idx,1] = (y[idx+tau]-y[idx])/(tau*dt)
+
+            ACF[idx] = dx[idx]*dx[idx+tau] + dy[idx]*dy[idx+tau]
+            MSD[idx]= np.sqrt( ((x[idx+tau]-x[idx])/dt)**2 + ((y[idx+tau]-y[idx])/dt)**2)
+            
+        else:
+            velocity_tau[idx,0] = (x[idx+tau]-x[idx])/(tau*dt)
+            velocity_tau[idx,1] = (y[idx+tau]-y[idx])/(tau*dt)
+
+            velocity_2tau[idx,0] = (x[idx+2*tau]-x[idx])/(2*(tau*dt))
+            velocity_2tau[idx,1] = (y[idx+2*tau]-y[idx])/(2*(tau*dt))
+
+            d_theta[idx] = np.arccos(np.sum(velocity_tau[idx,:]*velocity_2tau[idx,:])/(np.sqrt(velocity_tau[idx,0]**2 + velocity_tau[idx,1]**2 )*np.sqrt(velocity_2tau[idx,0]**2 + velocity_2tau[idx,1]**2 )))
+
+            idx_theta = idx
+    
+    return d_theta[:idx_theta].mean(), velocity_tau[:idx,:], MSD[:idx].mean(), ACF[:idx].mean(), idx_theta, idx, d_theta[:idx_theta]
+
+
+def calc_SVD(x, y, dt): 
+
+    velocity = np.zeros((len(x)-1,2))
+
+    for idx in np.arange(len(x)-1):
+        velocity[idx,0] = (x[idx+1]-x[idx])/dt
+        velocity[idx,1] = (y[idx+1]-y[idx])/dt
+
+    U, S, Vh = np.linalg.svd(velocity, full_matrices=True)
+
+    return velocity, U, S, Vh
+
+def calc_MSD_theta(data, dt, tau = 1):
+
+    x = data["x"] - data["x"][0]
+    y = data["y"] - data["y"][0]
+
+    d_theta = np.zeros(len(x))
+    idx_theta = 1 
+
+    MSD = np.zeros(len(x))
+
+    velocity_tau = np.zeros((len(x),2))
+    velocity_2tau = np.zeros((len(x),2))
+
+
+    for idx in np.arange(len(x)):
+
+        if idx+2*tau >= len(x):
+
+            if idx+tau >= len(x):
+                break
+
+            velocity_tau[idx,0] = (x[idx+tau]-x[idx])/(tau*dt)
+            velocity_tau[idx,1] = (y[idx+tau]-y[idx])/(tau*dt)
+
+            MSD[idx]= np.sqrt( ((x[idx+tau]-x[idx])/dt)**2 + ((y[idx+tau]-y[idx])/dt)**2)
+            
+        else:
+            velocity_tau[idx,0] = (x[idx+tau]-x[idx])/(tau*dt)
+            velocity_tau[idx,1] = (y[idx+tau]-y[idx])/(tau*dt)
+
+            velocity_2tau[idx,0] = (x[idx+2*tau]-x[idx])/(2*(tau*dt))
+            velocity_2tau[idx,1] = (y[idx+2*tau]-y[idx])/(2*(tau*dt))
+
+            d_theta[idx] = np.arccos(np.sum(velocity_tau[idx,:]*velocity_2tau[idx,:])/(np.sqrt(velocity_tau[idx,0]**2 + velocity_tau[idx,1]**2 )*np.sqrt(velocity_2tau[idx,0]**2 + velocity_2tau[idx,1]**2 )))
+
+            idx_theta = idx
+    
+    return d_theta[:idx_theta], velocity_tau[:idx,:], MSD[:idx], idx_theta, idx
+
+def power_law(x, a, k):
+    return a*x**(k)
+
+def calc_MSD(data, dt, tau):
+    
+    x = data["x"] - data["x"].values[0]
+    y = data["y"] - data["y"].values[0]
+
+    MSD = np.zeros(len(x))
+
+    for idx in np.arange(len(x)):
+        if idx+tau >= len(x):
+            break
+
+        MSD[idx]= np.sqrt( ((x[idx+tau]-x[idx])/dt)**2 + ((y[idx+tau]-y[idx])/dt)**2)
+            
+    
+    return MSD[:idx].mean()
+
+
 """
 
 Stored frame by frame analysis
