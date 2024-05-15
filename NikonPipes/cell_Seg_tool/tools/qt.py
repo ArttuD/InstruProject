@@ -58,7 +58,8 @@ class App(QWidget):
         self.v=0
         self.cell_ID = 0
 
-        self.video_path = "E:/instru_projects/TimeLapses/240311_timelapses_3lines_spheroidseeded96h001.nd2"
+        self.video_path = "F:/instru_projects/TimeLapses/u-wells/collagen/240301_timelapses_collagen_3lines_48h_spheroidseeded.nd2"
+        
         self.result_path = os.path.join(self.path, "results")
 
         self.createAndCheckFolder(self.result_path)
@@ -131,18 +132,21 @@ class App(QWidget):
 
         data_dict = {"file_name": [], "channel":[], "ON": [], "location": [], "z-level": [],  "time_start": [] }
 
-        with open(os.path.join(self.path, "Test.csv"), newline='') as csvfile:
+        with open(os.path.join(self.path, "Single_tracks.csv"), newline='') as csvfile:
             spamreader = csv.reader(csvfile, delimiter=',')
             for count, row in enumerate(spamreader):
                 if count == 0:
                     continue
 
-                if len(row) < 7:
+                if len(row) < 6:
                     self.printLabel.setText("{} is incorrect".format(count))
                     continue
                 
                 for idx, i in enumerate(data_dict.keys()):
-                    data_dict[i].append(row[idx])
+                    if i in ["location", "z-level", "time_start"]:
+                        data_dict[i].append(int(row[idx])-1)
+                    else:
+                        data_dict[i].append(row[idx])
 
         return data_dict
 
@@ -267,26 +271,29 @@ class App(QWidget):
 
         self.clicked_clicks = []
         self.num_clicks = 0
+        print(self.max_load, self.file_field.value())
 
-        if self.file_field.value() == self.max_load-1:
+        if self.file_field.value() >= (self.max_load):
+
             self.save()
             self.printLabel.setText("file Done!")
             self.file_field.setValue(int(0))
-            self.c= int(self.dataDict["channel"][self.file_field.value()])
+
+            self.c= int(self.dataDict["channel"][self.file_field.value()]) 
             self.t= int(self.dataDict["time_start"][self.file_field.value()])
             self.z= int(self.dataDict["z-level"][self.file_field.value()])
             self.x=0
             self.y=0
-            self.v= int(self.dataDict["location"][self.file_field.value()])
+            self.v= int(self.dataDict["location"][self.file_field.value()]) 
             self.cell_ID = int(self.dataDict["ON"][self.file_field.value()])
         else: 
             #self.worker.path_frame =  self.dataDict["file_name"][self.file_field.value()]
-            self.c= int(self.dataDict["channel"][self.file_field.value()])
-            self.t= int(self.dataDict["time_start"][self.file_field.value()])
-            self.z= int(self.dataDict["z-level"][self.file_field.value()])
+            self.c= int(self.dataDict["channel"][self.file_field.value()]) 
+            self.t= int(self.dataDict["time_start"][self.file_field.value()]) 
+            self.z= int(self.dataDict["z-level"][self.file_field.value()]) 
             self.x=0
             self.y=0
-            self.v= int(self.dataDict["location"][self.file_field.value()])
+            self.v= int(self.dataDict["location"][self.file_field.value()]) 
             self.cell_ID = int(self.dataDict["ON"][self.file_field.value()])
 
         self.ID_field.setValue(self.cell_ID)
@@ -343,8 +350,9 @@ class App(QWidget):
                 self.clicked_clicks = []
                 self.num_clicks = 0
 
-                self.file_field.setValue(self.file_field.value() + 1)
-                if self.file_field.value() == self.max_load:
+                self.file_field.setValue(self.file_field.value()+1)
+
+                if self.file_field.value() >= (self.max_load):
                     self.save()
                     self.printLabel.setText("file Done!")
                     self.file_field.setValue(int(0))
@@ -442,7 +450,7 @@ class App(QWidget):
 
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("-p", "--path", default= "E:/instru_projects", required= False ,help="path and name of output video")
+    argParser.add_argument("-p", "--path", default= "F:/instru_projects/TimeLapses/u-wells/collagen/results_240301_timelapses_collagen_3lines_48h_spheroidseeded", required= False ,help="path and name of output video")
 
     args = argParser.parse_args()
 
