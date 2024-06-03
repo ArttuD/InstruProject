@@ -82,8 +82,7 @@ def load_metadata(images):
 
 
 #Segmentation
-def process_frame(img, x_start, y_start):
-
+def process_projection(img, x_start, y_start):
 
     frame = img.copy()
     th_num = 500
@@ -96,7 +95,6 @@ def process_frame(img, x_start, y_start):
 
     radius = 30   
     footprint = morphology.disk(radius)
-
     local_otsu = rank.otsu(frame.copy(), footprint)
     lo = frame >= local_otsu    
     l1 = np.zeros_like(lo)
@@ -113,9 +111,116 @@ def process_frame(img, x_start, y_start):
     e2 = skimage.morphology.dilation(e2,skimage.morphology.disk(dilationCoedf))
 
     tmp = e.astype("int")-e2.astype("int")
-    #l2 = morphology.erosion(l1,footprint)
-    #l3 = morphology.closing(l2,footprint)
+    tmp[tmp<0] = 0
+    tmp = tmp.astype("uint8")
 
+    # detect the contours on the binary image using cv2.CHAIN_APPROX_NONE
+    contours, hierarchy = cv2.findContours(image=tmp, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE) 
+
+    # draw contours on the original image
+    image_copy = np.zeros_like(frame.copy())
+
+    prev = 0
+    max_radius = 0
+
+    big_idx = -1
+    max_x = (x_start[0]+y_start[0])/2
+    max_y = (x_start[1]+y_start[1])/2
+
+    w_max = np.abs(x_start[0]+y_start[0])
+    h_max = np.abs(x_start[1]+y_start[1])
+
+    for idx, i in enumerate(contours):
+
+        current = cv2.contourArea(i)
+        (x,y,w,h) = cv2.boundingRect(i)
+        (x_probe ,y_probe ),radius_probe = cv2.minEnclosingCircle(i)
+
+        border = (x_probe < y_start[0]-10) *(y_probe < y_start[1]-10 )*(x_probe > x_start[0]+10)*(y_probe > x_start[1]+10)
+        area_cond_min =  (current > 8e3) 
+        area_cond_max = (current < 2.5e6)
+
+        x_borders =(np.sum(contours[idx][:,0,0] == 0) < th_num )*(np.sum(contours[idx][:,0,0] >= img.shape[0]-1) < th_num)
+        y_borders =(np.sum(contours[idx][:,0,1] == 0) < th_num )*(np.sum(contours[idx][:,0,1] >= img.shape[0]-1) < th_num)
+        
+        if (area_cond_min) & (area_cond_max) & (prev < current) &  (border) & (x_borders*y_borders):
+            
+            big_idx = idx
+
+            #Area and radius
+            prev = current
+            max_radius = radius
+
+            #center
+            max_x = x_
+            max_y = y_
+
+            #dimensions
+            w_max = w
+            h_max = h
+
+
+    if big_idx == -1:
+        start_pos = x_start
+        end_pos = y_start
+        area = -1;  x_ = -1; y_ = -1; radius = -1
+    else:
+        cv2.fillPoly(image_copy, pts = [contours[big_idx]], color=(2**16,0,0))
+        (x_,y_),radius = cv2.minEnclosingCircle(contours[big_idx])
+        area = cv2.contourArea(contours[big_idx])
+
+        s_1 = int(x_-radius*1.5)
+        if s_1<0:
+            s_1 = 0
+
+        e_1 = int(x_+radius*1.5)
+        if e_1>2304:
+            e_1=2304
+
+        s_2 = int(y_+radius*1.5)
+        if s_2 >2304:
+            s_2 = 2304
+
+        e_2 = int(y_-radius*1.5)
+        if e_2 < 0:
+            e_2 = 0
+
+
+        start_pos = (s_1,e_2)
+        end_pos = (e_1,s_2)
+
+    return start_pos, end_pos, max_x, max_y, max_radius, prev, contours, big_idx
+
+
+#Segmentation
+def process_frame(img, x_start, y_start):
+
+    frame = img.copy()
+    th_num = 500
+
+    frame = scipy.ndimage.gaussian_filter(frame, (5,5))
+    frame = frame.astype(int)
+
+    glob_thresh = threshold_otsu(frame)
+    binary_local = frame > glob_thresh
+
+    radius = 30   
+    footprint = morphology.disk(radius)
+    local_otsu = rank.otsu(frame.copy(), footprint)
+    lo = frame >= local_otsu    
+    l1 = np.zeros_like(lo)
+    l1[binary_local] = lo[binary_local]
+
+    # could/should be improved    
+    closingCoef = 5
+    whiteTopCoef = 5
+    dilationCoedf = 5
+
+    l1 = 1-l1
+    e = skimage.morphology.closing(l1, skimage.morphology.disk(closingCoef))
+    e2 = skimage.morphology.white_tophat(e,skimage.morphology.disk(whiteTopCoef))
+    e2 = skimage.morphology.dilation(e2,skimage.morphology.disk(dilationCoedf))
+    tmp = e.astype("int")-e2.astype("int")
     tmp[tmp<0] = 0
     tmp = tmp.astype("uint8")
 
@@ -157,19 +262,19 @@ def process_frame(img, x_start, y_start):
         (x_,y_),radius = cv2.minEnclosingCircle(contours[big_idx])
         area = cv2.contourArea(contours[big_idx])
 
-        s_1 = int(x_-radius*2.5)
+        s_1 = int(x_-radius*1.5)
         if s_1<0:
             s_1 = 0
 
-        e_1 = int(x_+radius*2.5)
+        e_1 = int(x_+radius*1.5)
         if e_1>2304:
             e_1=2304
 
-        s_2 = int(y_+radius*2.5)
+        s_2 = int(y_+radius*1.5)
         if s_2 >2304:
             s_2 = 2304
 
-        e_2 = int(y_-radius*2.5)
+        e_2 = int(y_-radius*1.5)
         if e_2 < 0:
             e_2 = 0
 
