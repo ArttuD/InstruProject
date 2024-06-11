@@ -51,6 +51,54 @@ def increase_brightness(img, value=30):
     img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
     return img
 
+
+
+def Kittler_16(im, out):
+    
+    max_val = 2**16-1
+    h,g = np.histogram(im.ravel(),max_val,[0,max_val])
+    h = h.astype("float")
+    g = g.astype("float")
+    g = g[:-1]
+    c = np.cumsum(h)
+    m = np.cumsum(h * g)
+    s = np.cumsum(h * g**2)
+    sigma_f = np.sqrt(s/c - (m/c)**2)
+    cb = c[-1] - c
+    mb = m[-1] - m
+    sb = s[-1] - s
+    sigma_b = np.sqrt(sb/cb - (mb/cb)**2)
+    p =  c / c[-1]
+    v = p * np.log(sigma_f) + (1-p)*np.log(sigma_b) - p*np.log(p) - (1-p)*np.log(1-p)
+    v[~np.isfinite(v)] = np.inf
+    idx = np.argmin(v)
+    t = g[idx]
+    out[:,:] = 0
+    out[im >= t] = max_val
+    return out
+
+def yen_filter_16(image):
+
+    max_val = 2**16
+    counts, bin_centers =skimage.exposure.histogram(image.reshape(-1), max_val, source_range='image', normalize=False)
+
+    # On blank images (e.g. filled with 0) with int dtype, `histogram()`
+    # returns ``bin_centers`` containing only one value. Speed up with it.
+    if bin_centers.size == 1:
+        return bin_centers[0]
+
+    # Calculate probability mass function
+    pmf = counts.astype('float32', copy=False) / counts.sum()
+    P1 = np.cumsum(pmf)  # Cumulative normalized histogram
+    P1_sq = np.cumsum(pmf**2)
+    # Get cumsum calculated from end of squared array:
+    P2_sq = np.cumsum(pmf[::-1] ** 2)[::-1]
+    # P2_sq indexes is shifted +1. I assume, with P1[:-1] it's help avoid
+    # '-inf' in crit. ImageJ Yen implementation replaces those values by zero.
+    crit = np.log(((P1_sq[:-1] * P2_sq[1:]) ** -1) * (P1[:-1] * (1.0 - P1[:-1])) ** 2)
+    return bin_centers[crit.argmax()]
+
+
 #Metadata parser
 def load_metadata(images):
     meta_dict = {}
@@ -191,6 +239,46 @@ def process_projection(img, x_start, y_start):
 
     return start_pos, end_pos, max_x, max_y, max_radius, prev, contours, big_idx
 
+def check_box(x, y, r):
+
+    s_1 = int(x-r*1.5)
+    if s_1<0:
+        s_1 = 0
+
+    e_1 = int(x+r*1.5)
+    if e_1>2304:
+        e_1=2304
+
+    s_2 = int(y+r*1.5)
+    if s_2 >2304:
+        s_2 = 2304
+
+    e_2 = int(y-r*1.5)
+    if e_2 < 0:
+        e_2 = 0
+
+
+    start_pos = (s_1,e_2)
+    end_pos = (e_1,s_2)
+
+    return start_pos, end_pos
+
+def check_contour(i, prev, x_start, y_start, max_size):
+
+    th_num = 500
+
+    current = cv2.contourArea(i)
+    (x,y,w,h) = cv2.boundingRect(i)
+    (x_probe ,y_probe ), radius_probe = cv2.minEnclosingCircle(i)
+
+    border = (x_probe < y_start[0]-10) *(y_probe < y_start[1]-10 )*(x_probe > x_start[0]+10)*(y_probe > x_start[1]+10)
+    area_cond_min =  (current > 8e3) 
+    area_cond_max = (current < 2.5e6)
+
+    x_borders =(np.sum(i[:,0,0] == 0) < th_num )*(np.sum(i[:,0,0] >= max_size-1) < th_num)
+    y_borders =(np.sum(i[:,0,1] == 0) < th_num )*(np.sum(i[:,0,1] >= max_size-1) < th_num)
+
+    return ((area_cond_min) & (area_cond_max) & (prev < current) &  (border) & (x_borders*y_borders))
 
 #Segmentation
 def process_frame(img, x_start, y_start):
