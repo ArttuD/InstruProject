@@ -38,6 +38,70 @@ import re
 ##Functions
 ####
 
+
+def parse_raw_dict(day, video_path, own_meta):
+
+    fh = video_path
+
+    parts = os.path.split(video_path)[-1].split("_")
+    day = str(parts[0])
+
+    label_map = None
+
+    if isinstance(fh, str):
+        if not fh.endswith(".nd2"):
+            raise InvalidFileType(
+                ("The file %s you want to read with nd2reader" % fh)
+                + " does not have extension .nd2."
+            )
+        
+        filename = fh
+
+        fh = open(fh, "rb")
+
+    _fh = fh
+    _fh.seek(-8, 2)
+    chunk_map_start_location = struct.unpack("Q", _fh.read(8))[0]
+    _fh.seek(chunk_map_start_location)
+    raw_text = _fh.read(-1)
+    label_map = LabelMap(raw_text)
+    datasTT = RawMetadata(_fh, label_map)
+
+
+    seeding_density = []
+    well_name = []
+    well_info = datasTT.image_metadata[b'SLxExperiment'][b'ppNextLevelEx'][b''][b'uLoopPars'][b'Points'][b'']
+    for i in range(len(well_info)):
+        
+        label = (well_info[i][b'dPosName']).decode("utf8")
+        lable_parts = label.split("_")
+        if len(lable_parts) == 1:
+            seeding_density.append(500)
+        else:
+            try:
+                seeding_density.append(int(lable_parts[1]))
+            except:
+                seeding_density.append(500)
+                print(lable_parts[1])
+
+        well_name.append(lable_parts[0])
+
+    own_meta[day]["cell"] = well_name
+    own_meta[day]["seeding_density"] = seeding_density
+    own_meta[day]["dt"] = datasTT.image_metadata[b'SLxExperiment'][b'uLoopPars'][b'dPeriod']*1e-3
+
+    return own_meta
+        
+        
+def find_plot_size(num_data):
+    plot_ind = 1
+    while True:
+        if (plot_ind*plot_ind)>=num_data:
+            break
+        else:
+            plot_ind += 1
+    return plot_ind
+
 #Incease birghtness if the video is dark (visualization)
 def increase_brightness(img, value=30):
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
