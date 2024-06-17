@@ -17,6 +17,7 @@ from skimage.morphology import disk
 
 from tools.func import *
 
+
 def process_FL(img_bf, img_fl, x_start, y_start):
 
     img_fl = scipy.ndimage.gaussian_filter(img_fl, (3,3))
@@ -113,6 +114,7 @@ target_paths = [
 with open('./dataStore/metalib.json', 'r') as f:
   own_meta = json.load(f)
 
+
 scaler = 350
 
 for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
@@ -124,7 +126,16 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
     os.makedirs(results, exist_ok=True)
     parts = os.path.split(video_path)[-1].split("_")
     day = str(parts[0])
-    
+
+    focus_path = glob.glob(os.path.join(results, "*_indixes.pkl"))
+
+    if len(focus_path) == 0:
+        focus_flag = False
+    else:
+        focus_flag = True
+        with open(focus_path[0], 'rb') as f:
+            focus_dict = pickle.load(f)
+
     if day not in own_meta.keys():
         print(day, "Not in keys, skipping")
         continue
@@ -172,38 +183,39 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
                 prev = 0
 
                 if FL_flag:
+                    if focus_flag:
+                        idx = focus_dict[k]
+                    else:
+                        for z in range(metas["n_levels"]):
+                            current = images.get_frame_2D(c=1, t=j, z=z, x=0, y=0, v=k)
+                            current = current[x_final[1]:y_final[1], x_final[0]:y_final[0]]
+                            current = skimage.measure.blur_effect(current)
 
-                    for z in range(metas["n_levels"]):
-                        current = images.get_frame_2D(c=1, t=j, z=z, x=0, y=0, v=k)
-                        current = current[x_final[1]:y_final[1], x_final[0]:y_final[0]]
-                        current = skimage.measure.blur_effect(current)
-
-                        if current > prev:
-                            idx = z
+                            if current > prev:
+                                idx = z
 
                     img_fl = images.get_frame_2D(c=idx_fl, t=j, z=idx, x=0, y=0, v=k)
                     img_bf = images.get_frame_2D(c=idx_bf, t=j, z=idx, x=0, y=0, v=k)
 
                     out_vis, x, y, r, prev, big_idx, contours, x_final, y_final = process_FL(img_bf, img_fl, x_final, y_final)
                 else:
+                    if focus_flag:
+                        idx = focus_dict[k]
+                    else:
+                        for z in range(metas["n_levels"]):
 
-                    for z in range(metas["n_levels"]):
-
-                        current = images.get_frame_2D(c=0, t=j, z=z, x=0, y=0, v=k)
-                        current = current[x_final[1]:y_final[1], x_final[0]:y_final[0]]
-                        current = cv2.Laplacian(current, cv2.CV_64F).var()
-                        
-                        if current > prev:
-                            prev = current
-                            idx = z
+                            current = images.get_frame_2D(c=0, t=j, z=z, x=0, y=0, v=k)
+                            current = current[x_final[1]:y_final[1], x_final[0]:y_final[0]]
+                            current = cv2.Laplacian(current, cv2.CV_64F).var()
+                            
+                            if current > prev:
+                                prev = current
+                                idx = z
 
                     img_bf = images.get_frame_2D(c=0, t=j, z=idx, x=0, y=0, v=k)
                     out_vis, x, y, r, prev, big_idx, contours, x_final, y_final = process_BF(img_bf, x_final, y_final)
 
                 out_process.write(out_vis)
-            #except:
-            #    out_process.release()
-            #    pass
 
             track_list.append([x*metas["m"], y*metas["m"], r*metas["m"], prev*metas["m"]**2, (idx)*metas["z_step"], contours])
             try:
