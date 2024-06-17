@@ -166,8 +166,8 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
             else:
                 line_name = "unknown"
             
-            if (day == "230418") & (k == 2):
-                pass 
+            #if (day == "230418") & (k == 2):
+            #    pass 
 
             out_name = os.path.join(results,'{}_{}_{}.mp4'.format(os.path.split(video_path)[1][:-4], (k), (line_name) ) )
             out_process = cv2.VideoWriter(out_name, cv2.VideoWriter_fourcc(*"mp4v"), 5, (2304,2304))
@@ -187,7 +187,12 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
                         idx = focus_dict[k]
                     else:
                         for z in range(metas["n_levels"]):
-                            current = images.get_frame_2D(c=1, t=j, z=z, x=0, y=0, v=k)
+                            try:
+                                current = images.get_frame_2D(c=1, t=idx_fl, z=z, x=0, y=0, v=k)
+                            except:
+                                j-=1
+                                current = images.get_frame_2D(c=1, t=idx_fl, z=z, x=0, y=0, v=k)
+
                             current = current[x_final[1]:y_final[1], x_final[0]:y_final[0]]
                             current = skimage.measure.blur_effect(current)
 
@@ -204,7 +209,12 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
                     else:
                         for z in range(metas["n_levels"]):
 
-                            current = images.get_frame_2D(c=0, t=j, z=z, x=0, y=0, v=k)
+                            try:
+                                current = images.get_frame_2D(c=0, t=idx_fl, z=z, x=0, y=0, v=k)
+                            except:
+                                j-=1
+                                current = images.get_frame_2D(c=0, t=idx_fl, z=z, x=0, y=0, v=k)
+
                             current = current[x_final[1]:y_final[1], x_final[0]:y_final[0]]
                             current = cv2.Laplacian(current, cv2.CV_64F).var()
                             
@@ -216,12 +226,10 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
                     out_vis, x, y, r, prev, big_idx, contours, x_final, y_final = process_BF(img_bf, x_final, y_final)
 
                 out_process.write(out_vis)
+                track_list.append([x*metas["m"], y*metas["m"], r*metas["m"], prev*metas["m"]**2, (idx)*metas["z_step"], contours, big_idx])
 
-            track_list.append([x*metas["m"], y*metas["m"], r*metas["m"], prev*metas["m"]**2, (idx)*metas["z_step"], contours])
-            try:
-                total_dict = pile_data(track_list, total_dict, k, 1)
-            except:
-                continue
+            total_dict = pile_data(track_list, total_dict, k, 1)
+            track_list = []
             
             with open(os.path.join(results,'{}_detections.pkl'.format(os.path.split(video_path)[1][:-4])), 'wb') as f:
                 pickle.dump(total_dict, f)
