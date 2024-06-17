@@ -91,31 +91,33 @@ def process_BF(img_bf, x_start, y_start):
 
     return out_vis, x, y, r, prev, idx_big, contours, x_start, y_start
 
-root_path = "F:/instru_projects/TimeLapses/u-wells/*"
+root_path = "E:/instru_projects/TimeLapses/u-wells/*"
 target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
-root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
+root_path_2 = "D:/instru_projects/TimeLapses/u-wells/*"
 target_paths = target_paths + glob.glob(os.path.join(root_path_2, "*.nd2"))
 
 target_paths_FL = glob.glob(os.path.join(root_path, "*mCherry.nd2"))
 target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2, "*mCherry.nd2"))
 
 ignore_paths = []
+for i in range(len(target_paths)):
+    print(target_paths[i])
 
-target_paths = [
-    "F:/instru_projects/TimeLapses/u-wells/collagen/240304_timelapses_collagen_3lines_48h_spheroidseeded.nd2",
-    "F:/instru_projects/TimeLapses/u-wells/collagen/240226_timelapses_collagen_3lines_72h_spheroidseeded.nd2",
-    "F:/instru_projects/TimeLapses/u-wells/collagen/240306_timelapses_collagen_3lines_115h_spheroidseeded.nd2",
-    "F:/instru_projects/TimeLapses/u-wells/IPN/230417_timelapses_IPN3mM_3lines_63h_culture.nd2",
-    "F:/instru_projects/TimeLapses/u-wells/IPN/230418_timelapses_IPN3mM_3lines_91h_culture.nd2"
-]
+
+#"D:/instru_projects/TimeLapses/u-wells/collagen/240304_timelapses_collagen_3lines_48h_spheroidseeded.nd2",
+#"D:/instru_projects/TimeLapses/u-wells/collagen/240226_timelapses_collagen_3lines_72h_spheroidseeded.nd2",
+#"D:/instru_projects/TimeLapses/u-wells/collagen/240306_timelapses_collagen_3lines_115h_spheroidseeded.nd2"
+#"D:/instru_projects/TimeLapses/u-wells/IPN/230417_timelapses_IPN3mM_3lines_63h_culture.nd2"
+
+# target_paths = ["D:/instru_projects/TimeLapses/u-wells/IPN/230418_timelapses_IPN3mM_3lines_91h_culture.nd2"]
 
 with open('./dataStore/metalib.json', 'r') as f:
   own_meta = json.load(f)
 
 scaler = 350
 
-for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
+for video_path in tqdm.tqdm(target_paths[9:], total=len(target_paths[9:])):
 
     print("Analyzing: ", video_path)
     video_name = os.path.split(video_path)[-1][:-4]
@@ -136,6 +138,7 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
     with ND2Reader(video_path) as images:
 
         metas = load_metadata(images)
+
         if metas["n_channels"] == 2:
             FL_flag = True
         else:
@@ -155,8 +158,8 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
             else:
                 line_name = "unknown"
             
-            if (day == "230418") & (k == 2):
-                pass 
+            #if (day == "230418") & (k == 1):
+            #    pass 
 
             out_name = os.path.join(results,'{}_{}_{}.mp4'.format(os.path.split(video_path)[1][:-4], (k), (line_name) ) )
             out_process = cv2.VideoWriter(out_name, cv2.VideoWriter_fourcc(*"mp4v"), 5, (2304,2304))
@@ -188,8 +191,12 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
                 else:
 
                     for z in range(metas["n_levels"]):
+                        try:
+                            current = images.get_frame_2D(c=0, t=j, z=z, x=0, y=0, v=k)
+                        except:
+                            j -= 1
+                            current = images.get_frame_2D(c=0, t=j, z=z, x=0, y=0, v=k)
 
-                        current = images.get_frame_2D(c=0, t=j, z=z, x=0, y=0, v=k)
                         current = current[x_final[1]:y_final[1], x_final[0]:y_final[0]]
                         current = cv2.Laplacian(current, cv2.CV_64F).var()
                         
@@ -205,11 +212,10 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
             #    out_process.release()
             #    pass
 
-            track_list.append([x*metas["m"], y*metas["m"], r*metas["m"], prev*metas["m"]**2, (idx)*metas["z_step"], contours])
-            try:
-                total_dict = pile_data(track_list, total_dict, k, 1)
-            except:
-                continue
+                track_list.append([x*metas["m"], y*metas["m"], r*metas["m"], prev*metas["m"]**2, (idx)*metas["z_step"], contours, big_idx])
+            
+            total_dict = pile_data(track_list, total_dict, k, 1)
+            track_list = []
             
             with open(os.path.join(results,'{}_detections.pkl'.format(os.path.split(video_path)[1][:-4])), 'wb') as f:
                 pickle.dump(total_dict, f)
