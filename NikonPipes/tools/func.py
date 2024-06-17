@@ -457,6 +457,7 @@ def pile_data(current, total_dict, round, color):
     total_dict[name]["r"] = []
     total_dict[name]["area"] = []
     total_dict[name]["mask"] = []
+    total_dict[name]["big_idx"] = []
 
     for i in range(len(current)):
         total_dict[name]["x"].append(current[i][0])
