@@ -209,6 +209,8 @@ class focus_detector():
 
                     #self.handler.disconnect()
 
+                    stop_measuring = False
+
                     for id_repair in np.arange(metas["n_frames"]):
                             
                         if response_vals[id_repair] == 0:
@@ -231,22 +233,30 @@ class focus_detector():
                             # add wait key. window waits until user presses a key
                             kk = cv2.waitKey(0)
                             # and finally destroy/close all open windows
-                            if kk == 119:
+                            if kk == 119: #Move up 
                                 start_idx += 1
                                 if start_idx == metas["n_levels"]:
                                     start_idx -=1
-                            elif kk == 115:
+                            elif kk == 115: #Move down
                                 start_idx -= 1
                                 if start_idx == -1:
                                     start_idx +=1
-                            elif kk == 113:
+                            elif kk == 113: #Exit timestamp
                                 choosing = False
+                            elif kk == 101: #Exit timestamp and move to next location
+                                choosing = False
+                                stop_measuring = True
+                                start_idx = -1
                             else:
                                 print("incorrect key", k)
                         
                             cv2.destroyAllWindows()
 
                         max_indices[id_repair] = start_idx
+
+                        if stop_measuring:
+                            stop_measuring = False
+                            break
 
                         
                     self.focus_dict[k] = max_indices
