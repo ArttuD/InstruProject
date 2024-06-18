@@ -54,7 +54,7 @@ target_paths_FL = glob.glob(os.path.join(root_path, "*mCherry.nd2"))
 target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2, "*mCherry.nd2"))
 
 
-with open('C:/Users/lehtona6/codes/InstruProject/NikonPipes/dataStore/metalib.json', 'r') as f:
+with open('./NikonPipes/dataStore/metalib.json', 'r') as f:
   own_meta = json.load(f)
 
 
@@ -129,13 +129,15 @@ for video_path in target_paths:
         
         if k == ord("q"):  # Press q to quit
             break
+        
+    exit()
 
 
-    with open('./dataStore/metalib.json', 'w', encoding='utf-8') as f:
+    with open('./NikonPipes/dataStore/metalib.json', 'w', encoding='utf-8') as f:
         json.dump(own_meta, f, ensure_ascii=False, indent=4)
 
 
-with open('C:/Users/lehtona6/codes/InstruProject/NikonPipes/dataStore/metalib.json', 'r') as f:
+with open('./NikonPipes/dataStore/metalib.json', 'r') as f:
     own_meta = json.load(f)
 
 for video_path in target_paths:
@@ -150,5 +152,5 @@ for video_path in target_paths:
     for k in metas.keys():
         own_meta[day][k] = metas[k]
 
-with open('./dataStore/metalib.json', 'w', encoding='utf-8') as f:
+with open('./NikonPipes/dataStore/metalib.json', 'w', encoding='utf-8') as f:
     json.dump(own_meta, f, ensure_ascii=False, indent=4)
