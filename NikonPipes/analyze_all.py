@@ -164,6 +164,8 @@ for video_path in tqdm.tqdm(target_paths[9:], total=len(target_paths[9:])):
 
         for k in range(metas["n_fields"]): #
             
+            flag_tracking = True
+
             if k < len( own_meta["240304"]["cell"]):
                 line_name = own_meta["240304"]["cell"][k]
             else:
@@ -188,6 +190,9 @@ for video_path in tqdm.tqdm(target_paths[9:], total=len(target_paths[9:])):
                 if FL_flag:
                     if focus_flag:
                         idx = focus_dict[k]
+                        if idx == -1: #Drifts out of focus, stop tracking
+                            flag_tracking = False
+                            break
                     else:
                         for z in range(metas["n_levels"]):
                             try:
@@ -209,6 +214,9 @@ for video_path in tqdm.tqdm(target_paths[9:], total=len(target_paths[9:])):
                 else:
                     if focus_flag:
                         idx = focus_dict[k]
+                        if idx == -1: #Drifts out of focus, stop tracking
+                            flag_tracking = False
+                            break
                     else:
                         for z in range(metas["n_levels"]):
 
