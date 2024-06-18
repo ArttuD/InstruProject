@@ -100,7 +100,7 @@ class focus_detector():
     def process_pipe(self):
                 
         for video_path in tqdm.tqdm(self.target_paths, total=len(self.target_paths)):
-            print("Analyzing", video_path)
+            print("Analyzing:", video_path)
             video_name = os.path.split(video_path)[-1][:-4]
             root_path = os.path.split(video_path)[0]
             results = os.path.join(root_path, "results_{}".format(video_name))
