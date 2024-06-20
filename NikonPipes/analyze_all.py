@@ -92,7 +92,7 @@ def process_BF(img_bf, x_start, y_start):
 
     return out_vis, x, y, r, prev, idx_big, contours, x_start, y_start
 
-root_path = "E:/instru_projects/TimeLapses/u-wells/*"
+root_path = "F:/instru_projects/TimeLapses/u-wells/*"
 target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
 root_path_2 = "D:/instru_projects/TimeLapses/u-wells/*"
@@ -119,7 +119,7 @@ with open('./dataStore/metalib.json', 'r') as f:
 
 scaler = 350
 
-for video_path in tqdm.tqdm(target_paths[9:], total=len(target_paths[9:])):
+for video_path in tqdm.tqdm(target_paths[7:], total=len(target_paths[7:])):
 
     print("Analyzing: ", video_path)
     video_name = os.path.split(video_path)[-1][:-4]
@@ -166,8 +166,8 @@ for video_path in tqdm.tqdm(target_paths[9:], total=len(target_paths[9:])):
             
             flag_tracking = True
 
-            if k < len( own_meta["240304"]["cell"]):
-                line_name = own_meta["240304"]["cell"][k]
+            if k < len(own_meta[day]["cell"]):
+                line_name = own_meta[day]["cell"][k]
             else:
                 line_name = "unknown"
             
@@ -189,7 +189,7 @@ for video_path in tqdm.tqdm(target_paths[9:], total=len(target_paths[9:])):
 
                 if FL_flag:
                     if focus_flag:
-                        idx = focus_dict[k]
+                        idx = int(focus_dict[k][j])
                         if idx == -1: #Drifts out of focus, stop tracking
                             flag_tracking = False
                             break
@@ -213,7 +213,7 @@ for video_path in tqdm.tqdm(target_paths[9:], total=len(target_paths[9:])):
                     out_vis, x, y, r, prev, big_idx, contours, x_final, y_final = process_FL(img_bf, img_fl, x_final, y_final)
                 else:
                     if focus_flag:
-                        idx = focus_dict[k]
+                        idx = int(focus_dict[k][j])
                         if idx == -1: #Drifts out of focus, stop tracking
                             flag_tracking = False
                             break

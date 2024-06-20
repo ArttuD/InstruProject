@@ -7,9 +7,6 @@ import tqdm
 from nd2reader import ND2Reader
 import json
 import skimage
-from pynput import keyboard
-from pynput.keyboard import Key
-
 from tools.func import *
 
 
@@ -79,17 +76,15 @@ class focus_detector():
 
     def find_paths(self):
 
-        root_path = "E:/instru_projects/TimeLapses/u-wells/*"
+        root_path = "D:/instru_projects/TimeLapses/u-wells/*"
         target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
-        root_path_2 = "D:/instru_projects/TimeLapses/u-wells/*"
+        root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
         target_paths = target_paths + glob.glob(os.path.join(root_path_2, "*.nd2"))
 
-        root_path_FL = "D:/instru_projects/TimeLapses/u-wells/*"
-        target_paths_FL = glob.glob(os.path.join(root_path_FL, "*mCherry.nd2"))
+        target_paths_FL = glob.glob(os.path.join(root_path, "*mCherry.nd2"))
 
-        root_path_2_FL = "D:/instru_projects/TimeLapses/u-wells/*"
-        target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2_FL, "*.nd2"))
+        target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2, "*.nd2"))
 
         for i in target_paths:
             print(i)
@@ -99,7 +94,8 @@ class focus_detector():
 
     def process_pipe(self):
                 
-        for video_path in tqdm.tqdm(self.target_paths, total=len(self.target_paths)):
+        for video_path in tqdm.tqdm(self.target_paths[1:], total=len(self.target_paths[1:])):
+            self.focus_dict = {}
             print("Analyzing:", video_path)
             video_name = os.path.split(video_path)[-1][:-4]
             root_path = os.path.split(video_path)[0]
