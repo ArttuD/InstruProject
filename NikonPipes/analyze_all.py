@@ -53,14 +53,19 @@ def process_FL(img_bf, img_fl, x_start, y_start):
     
     return out_vis, x, y, r, prev, idx_big, contours, x_start, y_start
 
-def process_BF(img_bf, x_start, y_start):
+def process_BF(img_bf, x_start, y_start, local_flag):
 
-    tuned_bf = scipy.ndimage.gaussian_filter(img_bf.copy(), (3,3))
-    th = yen_filter_16(tuned_bf)
-    tuned_bf = tuned_bf > th
-    tuned_bf = 1-tuned_bf
+
+
+    if local_flag:
+        tuned_bf = local_th(img_bf.copy())
+    else: 
+        tuned_bf = scipy.ndimage.gaussian_filter(img_bf.copy(), (3,3))
+        th = yen_filter_16(tuned_bf)
+        tuned_bf = tuned_bf > th
+        tuned_bf = 1-tuned_bf
     
-    tuned_bf = dilation(tuned_bf, disk(10))
+    tuned_bf = dilation(tuned_bf, disk(5)) #10
     tuned_bf = closing(tuned_bf, disk(10))
     #tuned_bf = closing(tuned_bf, disk(3))
     frame = tuned_bf.astype("uint8") #(tuned_bf/(2**16)*2**8).astype("uint8")
@@ -73,6 +78,7 @@ def process_BF(img_bf, x_start, y_start):
     idx_big = -1
 
     for nmr, i in enumerate(contours):
+
         if check_contour(i, prev,  x_start, y_start, img_bf.shape[0]):
             prev = cv2.contourArea(i)
             idx_big = nmr
@@ -90,16 +96,22 @@ def process_BF(img_bf, x_start, y_start):
         (x, y), r = cv2.minEnclosingCircle(contours[idx_big])
         x_start, y_start = check_box(x, y, r)
 
+    #cv2.rectangle(out_vis, x_start, y_start, (255,0,0), 3)
+    #cv2.imshow('window' ,cv2.resize(out_vis, (520,520)))
+    #cv2.waitKey(0)
+
+    #cv2.destroyAllWindows()
+
     return out_vis, x, y, r, prev, idx_big, contours, x_start, y_start
 
-root_path = "F:/instru_projects/TimeLapses/u-wells/*"
+root_path = "D:/instru_projects/TimeLapses/u-wells/*"
 target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
-root_path_2 = "D:/instru_projects/TimeLapses/u-wells/*"
-target_paths = target_paths + glob.glob(os.path.join(root_path_2, "*.nd2"))
+#root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
+#target_paths = target_paths + glob.glob(os.path.join(root_path_2, "*.nd2"))
 
 target_paths_FL = glob.glob(os.path.join(root_path, "*mCherry.nd2"))
-target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2, "*mCherry.nd2"))
+#target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2, "*mCherry.nd2"))
 
 ignore_paths = []
 for i in range(len(target_paths)):
@@ -113,13 +125,15 @@ for i in range(len(target_paths)):
 
 # target_paths = ["D:/instru_projects/TimeLapses/u-wells/IPN/230418_timelapses_IPN3mM_3lines_91h_culture.nd2"]
 
+local_flag = False 
+
 with open('./dataStore/metalib.json', 'r') as f:
   own_meta = json.load(f)
 
 
 scaler = 350
 
-for video_path in tqdm.tqdm(target_paths[7:], total=len(target_paths[7:])):
+for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
 
     print("Analyzing: ", video_path)
     video_name = os.path.split(video_path)[-1][:-4]
@@ -234,7 +248,8 @@ for video_path in tqdm.tqdm(target_paths[7:], total=len(target_paths[7:])):
                                 idx = z
 
                     img_bf = images.get_frame_2D(c=0, t=j, z=idx, x=0, y=0, v=k)
-                    out_vis, x, y, r, prev, big_idx, contours, x_final, y_final = process_BF(img_bf, x_final, y_final)
+                    out_vis, x, y, r, prev, big_idx, contours, x_final, y_final = process_BF(img_bf, x_final, y_final, local_flag)
+
 
                 out_process.write(out_vis)
                 track_list.append([x*metas["m"], y*metas["m"], r*metas["m"], prev*metas["m"]**2, (idx)*metas["z_step"], contours, big_idx])
