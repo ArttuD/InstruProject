@@ -7,9 +7,6 @@ import tqdm
 from nd2reader import ND2Reader
 import json
 import skimage
-from pynput import keyboard
-from pynput.keyboard import Key
-
 from tools.func import *
 
 
@@ -79,17 +76,15 @@ class focus_detector():
 
     def find_paths(self):
 
-        root_path = "E:/instru_projects/TimeLapses/u-wells/*"
+        root_path = "D:/instru_projects/TimeLapses/u-wells/*"
         target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
-        root_path_2 = "D:/instru_projects/TimeLapses/u-wells/*"
+        root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
         target_paths = target_paths + glob.glob(os.path.join(root_path_2, "*.nd2"))
 
-        root_path_FL = "D:/instru_projects/TimeLapses/u-wells/*"
-        target_paths_FL = glob.glob(os.path.join(root_path_FL, "*mCherry.nd2"))
+        target_paths_FL = glob.glob(os.path.join(root_path, "*mCherry.nd2"))
 
-        root_path_2_FL = "D:/instru_projects/TimeLapses/u-wells/*"
-        target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2_FL, "*.nd2"))
+        target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2, "*.nd2"))
 
         for i in target_paths:
             print(i)
@@ -100,6 +95,7 @@ class focus_detector():
     def process_pipe(self):
                 
         for video_path in tqdm.tqdm(self.target_paths, total=len(self.target_paths)):
+            self.focus_dict = {}
             print("Analyzing:", video_path)
             video_name = os.path.split(video_path)[-1][:-4]
             root_path = os.path.split(video_path)[0]
@@ -192,7 +188,10 @@ class focus_detector():
                         if j !=0 and j%plot_ind == 0:
                             sub += 1
 
-                        img_plots[j] = ax[sub,j%plot_ind].imshow(cv2.resize(img_bf[x_final[1]:y_final[1], x_final[0]:y_final[0]], (512,512)))
+                        img_cropped_vis = img_bf[x_final[1]:y_final[1], x_final[0]:y_final[0]]
+                        #img_cropped_vis = skimage.exposure.equalize_hist(img_cropped_vis)
+
+                        img_plots[j] = ax[sub,j%plot_ind].imshow(cv2.resize(img_cropped_vis, (512,512)))
 
 
                         #focus_lines.append(l1)
@@ -229,6 +228,9 @@ class focus_detector():
                             img_bf = (img_bf/(2**16)*2**8).astype("uint8")
                             img_bf = np.stack((img_bf, img_bf, img_bf), axis = -1)
                             windowText = "t={}, z={}, v={}".format( id_repair, start_idx, k)
+
+                            #img_bf = skimage.exposure.equalize_hist(img_bf)
+
                             cv2.imshow(windowText, cv2.resize(img_bf, (520,520)))
                             # add wait key. window waits until user presses a key
                             kk = cv2.waitKey(0)
@@ -241,7 +243,7 @@ class focus_detector():
                                 start_idx -= 1
                                 if start_idx == -1:
                                     start_idx +=1
-                            elif kk == 113: #Exit timestamp
+                            elif kk == 113: #Exit timewwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwstamp
                                 choosing = False
                             elif kk == 101: #Exit timestamp and move to next location
                                 choosing = False

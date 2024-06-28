@@ -167,8 +167,9 @@ def yen_filter_16(image):
 def load_metadata(images):
     meta_dict = {}
      # number of locations start 1
-    meta_dict["n_fields"] = images.metadata['fields_of_view'].stop
 
+
+    meta_dict["n_fields"] = images.metadata['fields_of_view'].stop
     #number of timeseteps
     meta_dict["n_frames"] = images.metadata['num_frames']
 

@@ -47,21 +47,21 @@ parse_flag = True
 root_path = "F:/instru_projects/TimeLapses/u-wells/*"
 target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
-root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
+root_path_2 = "D:/instru_projects/TimeLapses/u-wells/*"
 target_paths = target_paths + glob.glob(os.path.join(root_path_2, "*.nd2"))
 
 target_paths_FL = glob.glob(os.path.join(root_path, "*mCherry.nd2"))
 target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2, "*mCherry.nd2"))
 
 
-with open('./NikonPipes/dataStore/metalib.json', 'r') as f:
+with open('./dataStore/metalib.json', 'r') as f:
   own_meta = json.load(f)
 
 
 coord_dict = {}
 
 for video_path in target_paths:
-
+    print(video_path)
     parts = os.path.split(video_path)[-1].split("_")
     day = str(parts[0])
     matrix = parts[2]
@@ -79,6 +79,8 @@ for video_path in target_paths:
     own_meta[day]["dim"] = "3D"
     own_meta[day]["incubation_time"] = start_time
     own_meta[day]["other"] = "other"
+
+    #print(own_meta.keys())
 
     own_meta = parse_raw_dict(day, video_path, own_meta)
     
@@ -99,6 +101,9 @@ for video_path in target_paths:
                 cv2.setMouseCallback("win", mousePoints)
 
                 img = images.get_frame_2D(c=0, t=0, z=vis_level, x=0, y=0, v=i)
+
+                img = skimage.exposure.equalize_hist(img)
+
                 cv2.imshow("win",img)
 
                 k = cv2.waitKey(0)
@@ -130,21 +135,19 @@ for video_path in target_paths:
         if k == ord("q"):  # Press q to quit
             break
         
-    exit()
 
-
-    with open('./NikonPipes/dataStore/metalib.json', 'w', encoding='utf-8') as f:
+    with open('./dataStore/metalib.json', 'w', encoding='utf-8') as f:
         json.dump(own_meta, f, ensure_ascii=False, indent=4)
 
 
-with open('./NikonPipes/dataStore/metalib.json', 'r') as f:
+with open('./dataStore/metalib.json', 'r') as f:
     own_meta = json.load(f)
 
 for video_path in target_paths:
 
     parts = os.path.split(video_path)[-1].split("_")
     day = str(parts[0])
-    own_meta = parse_raw_dict(day, video_path, own_meta)
+    #own_meta = parse_raw_dict(day, video_path, own_meta)
 
     with ND2Reader(video_path) as images:
         metas = load_metadata(images)
@@ -152,5 +155,5 @@ for video_path in target_paths:
     for k in metas.keys():
         own_meta[day][k] = metas[k]
 
-with open('./NikonPipes/dataStore/metalib.json', 'w', encoding='utf-8') as f:
+with open('./dataStore/metalib.json', 'w', encoding='utf-8') as f:
     json.dump(own_meta, f, ensure_ascii=False, indent=4)
