@@ -107,23 +107,22 @@ def process_BF(img_bf, x_start, y_start, local_flag):
 root_path = "D:/instru_projects/TimeLapses/u-wells/*"
 target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
-#root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
-#target_paths = target_paths + glob.glob(os.path.join(root_path_2, "*.nd2"))
+root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
+target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
 
-target_paths_FL = glob.glob(os.path.join(root_path, "*mCherry.nd2"))
+root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
+target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
+
+root_path_2 = "G:/instru_projects/TimeLapses/u-wells/*"
+target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
+
+#target_paths_FL = glob.glob(os.path.join(root_path, "*mCherry.nd2"))
 #target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2, "*mCherry.nd2"))
 
 ignore_paths = []
 for i in range(len(target_paths)):
     print(target_paths[i])
 
-
-#"D:/instru_projects/TimeLapses/u-wells/collagen/240304_timelapses_collagen_3lines_48h_spheroidseeded.nd2",
-#"D:/instru_projects/TimeLapses/u-wells/collagen/240226_timelapses_collagen_3lines_72h_spheroidseeded.nd2",
-#"D:/instru_projects/TimeLapses/u-wells/collagen/240306_timelapses_collagen_3lines_115h_spheroidseeded.nd2"
-#"D:/instru_projects/TimeLapses/u-wells/IPN/230417_timelapses_IPN3mM_3lines_63h_culture.nd2"
-
-# target_paths = ["D:/instru_projects/TimeLapses/u-wells/IPN/230418_timelapses_IPN3mM_3lines_91h_culture.nd2"]
 
 local_flag = False 
 
@@ -133,7 +132,7 @@ with open('./dataStore/metalib.json', 'r') as f:
 
 scaler = 350
 
-for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
+for video_path in tqdm.tqdm(target_paths[1:], total=len(target_paths[1:])):
 
     print("Analyzing: ", video_path)
     video_name = os.path.split(video_path)[-1][:-4]
@@ -142,6 +141,9 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
     os.makedirs(results, exist_ok=True)
     parts = os.path.split(video_path)[-1].split("_")
     day = str(parts[0])
+
+    if day == "240304":
+        local_flag = True
 
     focus_path = glob.glob(os.path.join(results, "*_indixes.pkl"))
 
@@ -210,10 +212,10 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
                     else:
                         for z in range(metas["n_levels"]):
                             try:
-                                current = images.get_frame_2D(c=1, t=idx_fl, z=z, x=0, y=0, v=k)
+                                current = images.get_frame_2D(c=idx_fl, t=j, z=z, x=0, y=0, v=k)
                             except:
                                 j-=1
-                                current = images.get_frame_2D(c=1, t=idx_fl, z=z, x=0, y=0, v=k)
+                                current = images.get_frame_2D(c=idx_fl, t=j, z=z, x=0, y=0, v=k)
 
                             current = current[x_final[1]:y_final[1], x_final[0]:y_final[0]]
                             current = skimage.measure.blur_effect(current)
@@ -235,10 +237,11 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
                         for z in range(metas["n_levels"]):
 
                             try:
-                                current = images.get_frame_2D(c=0, t=idx_fl, z=z, x=0, y=0, v=k)
+                                current = images.get_frame_2D(c=0, t=j, z=z, x=0, y=0, v=k)
                             except:
+                                #print("Cannot get frame", j)
                                 j-=1
-                                current = images.get_frame_2D(c=0, t=idx_fl, z=z, x=0, y=0, v=k)
+                                current = images.get_frame_2D(c=0, t=j, z=z, x=0, y=0, v=k)
 
                             current = current[x_final[1]:y_final[1], x_final[0]:y_final[0]]
                             current = cv2.Laplacian(current, cv2.CV_64F).var()
@@ -250,12 +253,22 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
                     img_bf = images.get_frame_2D(c=0, t=j, z=idx, x=0, y=0, v=k)
                     out_vis, x, y, r, prev, big_idx, contours, x_final, y_final = process_BF(img_bf, x_final, y_final, local_flag)
 
-
                 out_process.write(out_vis)
-                track_list.append([x*metas["m"], y*metas["m"], r*metas["m"], prev*metas["m"]**2, (idx)*metas["z_step"], contours, big_idx])
+
+                if big_idx == -1:
+                    try:
+                        new = track_list[-1]
+                        new[-1] += 1
+                        track_list.append(new)
+                    except:
+                        print("First frame failed")
+                        track_list.append([x*metas["m"], y*metas["m"], r*metas["m"], prev*metas["m"]**2, (idx)*metas["z_step"], contours, big_idx, j])
+                else:
+                    track_list.append([x*metas["m"], y*metas["m"], r*metas["m"], prev*metas["m"]**2, (idx)*metas["z_step"], contours, big_idx, j])
 
             total_dict = pile_data(track_list, total_dict, k, 1)
             track_list = []
+            local_flag = False
             
             with open(os.path.join(results,'{}_detections.pkl'.format(os.path.split(video_path)[1][:-4])), 'wb') as f:
                 pickle.dump(total_dict, f)

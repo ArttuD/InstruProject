@@ -102,7 +102,7 @@ for video_path in target_paths:
 
                 img = images.get_frame_2D(c=0, t=0, z=vis_level, x=0, y=0, v=i)
 
-                img = skimage.exposure.equalize_hist(img)
+                #img = skimage.exposure.equalize_hist(img)
 
                 cv2.imshow("win",img)
 
