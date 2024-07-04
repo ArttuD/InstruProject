@@ -171,6 +171,7 @@ class PostProcess():
 
 
                 for k in range(metas["n_fields"]): 
+
                     self.current_key = "loc_{}_ch_{}".format(k, 1)
                     if (day == "230418") & (k == 2):
                         pass 
@@ -182,8 +183,16 @@ class PostProcess():
                     
                     plot_ind = find_plot_size(metas["n_frames"])
 
-                    masks = self.data_dict[self.current_key]['mask']
-                    idx_larges = self.data_dict[self.current_key]["big_idx"]
+                    if self.current_key in self.data_dict.keys():
+                        masks = self.data_dict[self.current_key]['mask']
+                        idx_larges = self.data_dict[self.current_key]["big_idx"]
+                    elif "loc_{}_ch_{}".format(k, 0) in self.data_dict.keys():
+                        self.current_key = "loc_{}_ch_{}".format(k, 0)  
+                        masks = self.data_dict[self.current_key]['mask']
+                        idx_larges = self.data_dict[self.current_key]["big_idx"]
+                    else:
+                        continue
+
 
                     fig, ax = plt.subplots(3,3,figsize=(plot_ind,plot_ind))
 
