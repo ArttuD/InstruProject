@@ -44,14 +44,14 @@ skip_existing = False
 map_coord = True
 parse_flag = True
 
-root_path = "F:/instru_projects/TimeLapses/u-wells/*"
+root_path = "D:/instru_projects/TimeLapses/u-wells/*"
 target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
-root_path_2 = "D:/instru_projects/TimeLapses/u-wells/*"
-target_paths = target_paths + glob.glob(os.path.join(root_path_2, "*.nd2"))
+#root_path_2 = "D:/instru_projects/TimeLapses/u-wells/*"
+#target_paths = target_paths + glob.glob(os.path.join(root_path_2, "*.nd2"))
 
 target_paths_FL = glob.glob(os.path.join(root_path, "*mCherry.nd2"))
-target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2, "*mCherry.nd2"))
+#target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2, "*mCherry.nd2"))
 
 
 with open('./dataStore/metalib.json', 'r') as f:
@@ -102,7 +102,7 @@ for video_path in target_paths:
 
                 img = images.get_frame_2D(c=0, t=0, z=vis_level, x=0, y=0, v=i)
 
-                img = skimage.exposure.equalize_hist(img)
+                #img = skimage.exposure.equalize_hist(img)
 
                 cv2.imshow("win",img)
 

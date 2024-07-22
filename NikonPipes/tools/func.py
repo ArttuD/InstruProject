@@ -115,7 +115,26 @@ def increase_brightness(img, value=30):
     img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
     return img
 
+def local_th(img): 
+    img_bin = ((((img/(2**16))*2**8)).astype("uint8"))
 
+    thresh1 = cv2.adaptiveThreshold(img_bin,255,cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY,11,2)
+    thresh1 = ((np.max(thresh1) - (thresh1))/np.max(thresh1)).astype("uint8")
+    thresh1 = scipy.ndimage.median_filter(thresh1, size = 7)
+
+    #whiteTopCoef = 1
+    #dilationCoedf = 1
+    #e2 = skimage.morphology.white_tophat(thresh1,skimage.morphology.disk(whiteTopCoef))
+    #e2 = skimage.morphology.dilation(e2,skimage.morphology.disk(dilationCoedf))
+    
+    tmp = thresh1.astype("uint8")#-e2.astype("uint8")
+    tmp[tmp<0] = 0
+
+    #cv2.imshow('window' ,cv2.resize(tmp*255, (520,520)))
+    #cv2.waitKey(0)
+    #cv2.destroyAllWindows()
+
+    return tmp
 
 def Kittler_16(im, out):
     
@@ -192,6 +211,9 @@ def load_metadata(images):
     meta_dict["width"] = images.metadata["width"]
 
     return meta_dict
+
+def filter_Gauss(datas):
+    return scipy.ndimage.gaussian_filter(datas, sigma = 5)
 
 
 #Segmentation
@@ -459,6 +481,7 @@ def pile_data(current, total_dict, round, color):
     total_dict[name]["area"] = []
     total_dict[name]["mask"] = []
     total_dict[name]["big_idx"] = []
+    total_dict[name]["timestamp"] = []
 
     for i in range(len(current)):
         total_dict[name]["x"].append(current[i][0])
@@ -468,6 +491,7 @@ def pile_data(current, total_dict, round, color):
         total_dict[name]["z"].append(current[i][4])
         total_dict[name]["mask"].append(current[i][5])
         total_dict[name]["big_idx"].append(current[i][6])
+        total_dict[name]["timestamp"].append(current[i][7])
 
     return total_dict
 
