@@ -132,7 +132,7 @@ with open('./dataStore/metalib.json', 'r') as f:
 
 scaler = 350
 
-for video_path in tqdm.tqdm(target_paths[1:], total=len(target_paths[1:])):
+for video_path in tqdm.tqdm(target_paths[:1], total=len(target_paths[:1])):
 
     print("Analyzing: ", video_path)
     video_name = os.path.split(video_path)[-1][:-4]
@@ -199,7 +199,7 @@ for video_path in tqdm.tqdm(target_paths[1:], total=len(target_paths[1:])):
             #try:
 
             for j in range(metas["n_frames"]):
-
+                init_timestep = j
                 idx = 0
                 prev = 0
 
@@ -262,9 +262,9 @@ for video_path in tqdm.tqdm(target_paths[1:], total=len(target_paths[1:])):
                         track_list.append(new)
                     except:
                         print("First frame failed")
-                        track_list.append([x*metas["m"], y*metas["m"], r*metas["m"], prev*metas["m"]**2, (idx)*metas["z_step"], contours, big_idx, j])
+                        track_list.append([x*metas["m"], y*metas["m"], r*metas["m"], prev*metas["m"]**2, (idx)*metas["z_step"], contours, big_idx, init_timestep])
                 else:
-                    track_list.append([x*metas["m"], y*metas["m"], r*metas["m"], prev*metas["m"]**2, (idx)*metas["z_step"], contours, big_idx, j])
+                    track_list.append([x*metas["m"], y*metas["m"], r*metas["m"], prev*metas["m"]**2, (idx)*metas["z_step"], contours, big_idx, init_timestep])
 
             total_dict = pile_data(track_list, total_dict, k, 1)
             track_list = []

@@ -130,8 +130,8 @@ class PostProcess():
 
     def pipe(self):
 
-        for video_path in tqdm.tqdm(self.target_paths, total=len(self.target_paths)):
-
+        for video_path in tqdm.tqdm(self.target_paths[-1:], total=len(self.target_paths[-1:])):
+            print(video_path)
             video_name = os.path.split(video_path)[-1][:-4]
             root_path = os.path.split(video_path)[0]
             results = os.path.join(root_path, "results_{}".format(video_name))
@@ -140,11 +140,11 @@ class PostProcess():
             day = str(parts[0])
             self.coords = self.own_meta[day]["coords"]
 
-            focus_path = glob.glob(os.path.join(results, "focus_indixes.pkl")) #*_indixes.pkl
+            focus_path = glob.glob(os.path.join(results, "corrected_focus_indixes.pkl")) #*_indixes.pkl
             with open(focus_path[0], 'rb') as f:
                 self.focus_dict = pickle.load(f)   
 
-            pickel_path = os.path.join(results,"{}_detections.pkl".format(video_name))
+            pickel_path = os.path.join(results,"{}_corrected_detections.pkl".format(video_name))
             with open(pickel_path, 'rb') as f:
                 self.data_dict = pickle.load(f)
 
@@ -170,7 +170,7 @@ class PostProcess():
 
 
 
-                for k in range(metas["n_fields"]): 
+                for k in range(9,metas["n_fields"]): 
 
                     self.current_key = "loc_{}_ch_{}".format(k, 1)
                     if (day == "230418") & (k == 2):
@@ -215,8 +215,10 @@ class PostProcess():
 
                         mask = masks[j][idx_larges[j]]
                         
-
-                        img_bf = images.get_frame_2D(c=idx_bf, t=j, z=idx, x=0, y=0, v=k)
+                        try:
+                            img_bf = images.get_frame_2D(c=idx_bf, t=j, z=idx, x=0, y=0, v=k)
+                        except:
+                            img_bf = images.get_frame_2D(c=idx_bf, t=j-1, z=start_idx, x=0, y=0, v=loc)
                         img_bf = (img_bf/(2**16)*2**8).astype("uint8")
                         img_bf = np.stack((img_bf, img_bf, img_bf), axis = -1)
                         
@@ -262,7 +264,8 @@ class PostProcess():
                             self.process(metas, idx_bf, k, j-8, images)
 
                             break
-
+                    
+                    #print("Saving dicts")
                     with open(os.path.join(results,'{}_corrected_detections.pkl'.format(os.path.split(video_path)[1][:-4])), 'wb') as f:
                         pickle.dump(self.data_dict, f)
 
@@ -290,8 +293,10 @@ class PostProcess():
             #self.changed_countour = False
 
             while choosing:
-
-                img_bf = images.get_frame_2D(c=idx_bf, t=id_repair, z=start_idx, x=0, y=0, v=loc)
+                try:
+                    img_bf = images.get_frame_2D(c=idx_bf, t=id_repair, z=start_idx, x=0, y=0, v=loc)
+                except:
+                    img_bf = images.get_frame_2D(c=idx_bf, t=id_repair-1, z=start_idx, x=0, y=0, v=loc)
 
                 img_bf = (img_bf/(2**16)*2**8).astype("uint8")
                 img_bf = np.stack((img_bf, img_bf, img_bf), axis = -1)
@@ -331,13 +336,15 @@ class PostProcess():
                 imgB = cv2.cvtColor(self.img_.copy(), cv2.COLOR_BGR2GRAY)
                 contours, hierarchy = cv2.findContours(image=imgB, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
                 c = max(contours, key=cv2.contourArea)
-                self.data_dict[self.current_key]['mask'][idx_frame] = [c]
-                self.data_dict[self.current_key]['big_idx'][idx_frame] = 0
+
+                print("saving key {}, frame num {}, length of contour {}".format(self.current_key, id_repair, c.shape))
+                self.data_dict[self.current_key]['mask'][id_repair] = [c]
+                self.data_dict[self.current_key]['big_idx'][id_repair] = 0
 
             if int(self.focus_dict[loc][id_repair]) != start_idx:
-                self.focus_dict[loc][id_repair] = start_idx
 
-            self.changed_countour = False
+                print("saving focus location {} frame {} value".format(loc, id_repair, start_idx))
+                self.focus_dict[loc][id_repair] = start_idx
             
         cv2.destroyAllWindows()
 
