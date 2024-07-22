@@ -3,8 +3,9 @@ import os
 import tqdm
 import json
 from tools.func import *
-
+from tools.saver import Cells
 from nd2reader import ND2Reader
+
 
 class manual_tracker():
 
@@ -40,6 +41,10 @@ class manual_tracker():
             log_file = np.load("log_single.npy")
             self.n_start = log_file[0]; self.t_start = log_file[1]
             return 1
+        
+    def save_logged(self):
+        info = np.array(self.k, self.t_start)
+        np.save( os.path.join(self.results,"log_single.npy"), info)
         
     def fetch_image(self, images, j, z, k):
         
@@ -81,22 +86,23 @@ class manual_tracker():
                 self.pts_dict[self.object_num] = []
 
             self.n_clicks += 1 
-            self.pts.append([int(x*self.converter),int(y*self.converter)])
+            self.pts.append([int(x*self.converter),int(y*self.converter), self.z_start, self.t_start, self.k])
 
             if (self.n_clicks == 1) & (self.round == "protrusion"):
-                self.img_moc = cv2.circle(self.img_moc, self.pts[0], radius=10, color=(0, 0, 255), thickness=4)
+                self.img_moc = cv2.circle(self.img_moc, self.pts[0][:2], radius=10, color=(0, 0, 255), thickness=4)
             elif (self.n_clicks == 2) & (self.round == "protrusion"):
-                self.img_moc = cv2.arrowedLine(self.img_moc, self.pts[0], self.pts[1], (0, 0, 255)  , 5)
+                self.img_moc = cv2.arrowedLine(self.img_moc, self.pts[0][:2], self.pts[1][:2], (0, 0, 255)  , 5)
             elif (self.n_clicks == 3) & (self.round == "protrusion"):
                 self.img_moc = cv2.circle(self.img_moc, (self.pts[2][0],self.pts[2][1]), radius=5, color=(255, 0, 255), thickness=-1)
             elif (self.n_clicks == 4) & (self.round == "protrusion"):
-                self.img_moc = cv2.line(self.img_moc, self.pts[2], self.pts[3], (255, 0, 255) , 5)
+                self.img_moc = cv2.line(self.img_moc, self.pts[2][:2], self.pts[3][:2], (255, 0, 255) , 5)
                 self.pts_dict[self.object_num].append(self.pts)
                 self.pts = []
                 self.object_num += 1
-                self.n_clicks = 0 
+                self.n_clicks = 0
+
             elif (self.n_clicks == 1) & (self.round == "cells"):
-                self.img_moc = cv2.circle(self.img_moc, self.pts[0], radius=5, color=(0, 255, 255), thickness=-1)
+                self.img_moc = cv2.circle(self.img_moc, self.pts[0][:2], radius=5, color=(0, 255, 255), thickness=-1)
                 self.pts_dict[self.object_num].append(self.pts)
                 self.pts = []
                 self.object_num += 1
@@ -123,12 +129,12 @@ class manual_tracker():
             pts = self.pts_dict[current_key]
             if len(pts) == 1:
                 print(pts)
-                self.img_moc = cv2.circle(self.img_moc, pts[0][0], radius=5, color=(0, 255, 255), thickness=-1)
+                self.img_moc = cv2.circle(self.img_moc, pts[0][0][:2], radius=5, color=(0, 255, 255), thickness=-1)
             elif len(pts) == 4:
-                self.img_moc = cv2.circle(self.img_moc, self.pts[0], radius=10, color=(0, 0, 255), thickness=4)
-                self.img_moc = cv2.arrowedLine(self.img_moc, self.pts[0], self.pts[1], (0, 0, 255)  , 9)
-                self.img_moc = cv2.circle(self.img_moc, (self.pts[2][0],self.pts[2][1]), radius=5, color=(255, 0, 255), thickness=-1)
-                self.img_moc = cv2.line(self.img_moc, self.pts[2], self.pts[3], (255, 255, 0)  , 9)
+                self.img_moc = cv2.circle(self.img_moc, pts[0][0][:2], radius=10, color=(0, 0, 255), thickness=4)
+                self.img_moc = cv2.arrowedLine(self.img_moc, pts[0][0][:2], pts[0][1][:2], (0, 0, 255)  , 9)
+                self.img_moc = cv2.circle(self.img_moc, (pts[0][2][0], pts[0][2][1]), radius=5, color=(255, 0, 255), thickness=-1)
+                self.img_moc = cv2.line(self.img_moc, pts[0][2][:2], pts[0][3][:2], (255, 255, 0)  , 9)
 
         windowText = "method {}, t={}, z={}, v={}".format(self.round , self.t_start, self.z_start, self.k)
         cv2.putText(self.img_moc, windowText,(150, 150), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 5)
@@ -145,16 +151,13 @@ class manual_tracker():
             self.n_start = 0
             self.t_start = 0
             self.z_start = 0
-
-
-
             self.video_name = os.path.split(video_path)[-1][:-4]
             self.root_path = os.path.split(video_path)[0]
-
             self.results = os.path.join(self.root_path, "results_{}".format(self.video_name))
+            self.saver = Cells(self.results)
+            self.saver.reset_frame()
 
             _ = self.check_logged()
-            #os.makedirs(results, exist_ok=True)
 
             parts = os.path.split(video_path)[-1].split("_")
             day = str(parts[0])        
@@ -182,6 +185,8 @@ class manual_tracker():
                 
                 for k in range(self.n_start, self.metas["n_fields"]):
                     self.k = k
+                    
+
                     t_cap = True
 
                     while t_cap:
@@ -213,7 +218,18 @@ class manual_tracker():
                                 if kk == 113: #Exit q
                                     choosing = False
                                     print("exisiting methods")
-
+                                    if (self.round == "cells") & (len(self.pts_dict.keys()) > 0):
+                                        for current_key in self.pts_dict.keys():
+                                            row = self.pts_dict[current_key][0]
+                                            print(row)
+                                            print(int(current_key), row[0][3], row[0][0], row[0][1], row[0][2],row[0][4])
+                                            self.saver.update_cell(int(current_key), row[0][3], row[0][0], row[0][1], row[0][2],row[0][4])
+                                    elif(self.round == "protrusion") & (len(self.pts_dict.keys()) > 0):
+                                        for current_key in self.pts_dict.keys():
+                                            row = self.pts_dict[current_key][0]
+                                            print(row)
+                                            print([[row[0][0], row[0][1]],[row[1][0], row[1][1]]], int(current_key), row[0][3], row[0][2],row[0][4], [[row[2][0], row[2][1]],[row[3][0], row[3][1]]])
+                                            self.saver.update_vector([[row[0][0], row[0][1]],[row[1][0], row[1][1]]], int(current_key), row[0][3], row[0][2],row[0][4], [[row[2][0], row[2][1]],[row[3][0], row[3][1]]])
                                 elif kk == 101: #clear e
                                     self.n_clicks = 0
                                     self.pts = []
@@ -268,6 +284,7 @@ class manual_tracker():
                             self.object_num = 0
                             self.pts_dict = {}
 
+                        self.save_logged()
                         if self.t_start == self.metas["n_frames"]:
                             t_cap = False
                         else:
