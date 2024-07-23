@@ -107,14 +107,14 @@ def process_BF(img_bf, x_start, y_start, local_flag):
 root_path = "D:/instru_projects/TimeLapses/u-wells/*"
 target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
-root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
-target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
-
-root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
-target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
-
-root_path_2 = "G:/instru_projects/TimeLapses/u-wells/*"
-target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
+#root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
+#target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
+#
+#root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
+#target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
+#
+#root_path_2 = "G:/instru_projects/TimeLapses/u-wells/*"
+#target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
 
 #target_paths_FL = glob.glob(os.path.join(root_path, "*mCherry.nd2"))
 #target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2, "*mCherry.nd2"))
