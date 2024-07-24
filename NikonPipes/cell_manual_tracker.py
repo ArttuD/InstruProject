@@ -94,6 +94,7 @@ class manual_tracker():
                     for probe in np.arange(0,100):
                         if probe not in self.pts_dict.keys():
                             self.spheroid_object_num = probe
+                            break
 
                 self.pts_dict[self.spheroid_object_num] = []
 
