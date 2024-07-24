@@ -15,16 +15,17 @@ class Cells():
         self.reset_frame()
 
     def reset_frame(self):
-        self.data_dict =  {"path": [], "cell_id": [], "time": [], "location": [], "x": [], "y": [], "z": [], "x_2": [], "y_2": [], "z_2": [], "lenght":[], "x_vec":[], "y_vec":[], "angle":[], "width":[] }
+        self.data_dict =  {"cell_id": [], "time": [], "location": [], "x": [], "y": [], "z": [], "lenght":[], "x_vec":[], "y_vec":[], "angle":[], "width":[] }
+        self.data_dict_ =  {"cell_id": [], "time": [], "location": [], "x": [], "y": [], "z": []}
 
     def update_cell(self, det_id, t, x1, y1, z1, loc):
         
-        self.data_dict["cell_id"].append(det_id)
-        self.data_dict["time"].append(t)
-        self.data_dict["location"].append(loc)
-        self.data_dict["x"].append(x1)
-        self.data_dict["y"].append(y1)
-        self.data_dict["z"].append(z1)
+        self.data_dict_["cell_id"].append(det_id)
+        self.data_dict_["time"].append(t)
+        self.data_dict_["location"].append(loc)
+        self.data_dict_["x"].append(x1)
+        self.data_dict_["y"].append(y1)
+        self.data_dict_["z"].append(z1)
 
         self.save_data("cell")
               
@@ -38,10 +39,8 @@ class Cells():
 
         x_vec = x2 - x1
         y_vec = y2 - y1
-
-        self.data_dict["path"].append(self.path_frame)              
-        self.data_dict["ID"].append(id)
-        self.data_dict["loc"].append(v)
+  
+        self.data_dict["location"].append(v)
         self.data_dict["cell_id"].append(id)
         self.data_dict["time"].append(t)
         self.data_dict["x"].append(x1)
@@ -50,7 +49,7 @@ class Cells():
         
         self.data_dict["x_vec"].append(x_vec)
         self.data_dict["y_vec"].append(y_vec)
-        self.data_dict["legth"].append(vector_2d_length(x1,y1,x2,y2))
+        self.data_dict["lenght"].append(vector_2d_length(x1,y1,x2,y2))
         self.data_dict["angle"].append(np.arctan2(y_vec, x_vec))
 
         x1 = coords_[0][0]
@@ -59,7 +58,7 @@ class Cells():
         x2 = coords_[1][0]
         y2 = coords_[1][1]
 
-        self.data_dict_dot["width"].append(vector_2d_length(x1,y1,x2,y2))
+        self.data_dict["width"].append(vector_2d_length(x1,y1,x2,y2))
 
         self.save_data("vector")
 
@@ -67,11 +66,11 @@ class Cells():
 
         if ctr == "cell":
             print("saved track")
-            df = pd.DataFrame.from_dict(self.data_dict_dot)
+            df = pd.DataFrame.from_dict(self.data_dict_)
             df.to_csv(os.path.join(self.path, "{}_track.csv".format(self.path)), index = False)
         
         if ctr == "vector":
             print("save vector")
-            df = pd.DataFrame.from_dict(self.data_dict_vector)
+            df = pd.DataFrame.from_dict(self.data_dict)
             df.to_csv(os.path.join(self.path, "{}_vector.csv".format(self.path)), index = False)
     

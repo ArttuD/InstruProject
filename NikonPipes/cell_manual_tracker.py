@@ -78,12 +78,17 @@ class manual_tracker():
     def click_event(self, event, x, y, flags, params):
 
         if event == cv2.EVENT_LBUTTONDOWN:
-
-
             print(event, x, y)
             
-            if self.n_clicks == 0:
-                self.pts_dict[self.object_num] = []
+            if (self.n_clicks == 0) & (self.round == "cells"):
+                self.pts_dict[self.cell_object_num] = []
+            elif (self.n_clicks == 0) & (self.round == "protrusion"):
+                for probe in self.prev_prot.keys():
+                    row = self.pts_dict[probe][0]
+                    if 10 > np.sqrt((x-row[0][0])**2 + (y-row[0][1])**2):
+                        self.spheroid_object_num = int(probe)
+                
+                self.pts_dict[self.spheroid_object_num] = []
 
             self.n_clicks += 1 
             self.pts.append([int(x*self.converter),int(y*self.converter), self.z_start, self.t_start, self.k])
@@ -96,16 +101,16 @@ class manual_tracker():
                 self.img_moc = cv2.circle(self.img_moc, (self.pts[2][0],self.pts[2][1]), radius=5, color=(255, 0, 255), thickness=-1)
             elif (self.n_clicks == 4) & (self.round == "protrusion"):
                 self.img_moc = cv2.line(self.img_moc, self.pts[2][:2], self.pts[3][:2], (255, 0, 255) , 5)
-                self.pts_dict[self.object_num].append(self.pts)
+                self.pts_dict[self.spheroid_object_num].append(self.pts)
                 self.pts = []
-                self.object_num += 1
+                self.spheroid_object_num += 1
                 self.n_clicks = 0
 
             elif (self.n_clicks == 1) & (self.round == "cells"):
                 self.img_moc = cv2.circle(self.img_moc, self.pts[0][:2], radius=5, color=(0, 255, 255), thickness=-1)
-                self.pts_dict[self.object_num].append(self.pts)
+                self.pts_dict[self.cell_object_num].append(self.pts)
                 self.pts = []
-                self.object_num += 1
+                self.cell_object_num += 1
                 self.n_clicks = 0
 
         elif event == cv2.EVENT_RBUTTONDOWN:
@@ -185,9 +190,11 @@ class manual_tracker():
                 
                 for k in range(self.n_start, self.metas["n_fields"]):
                     self.k = k
-                    
-
                     t_cap = True
+
+                    self.cell_object_num = 0
+                    self.spheroid_object_num = 0
+                    self.prev_prot = {}
 
                     while t_cap:
 
@@ -221,15 +228,17 @@ class manual_tracker():
                                     if (self.round == "cells") & (len(self.pts_dict.keys()) > 0):
                                         for current_key in self.pts_dict.keys():
                                             row = self.pts_dict[current_key][0]
-                                            print(row)
-                                            print(int(current_key), row[0][3], row[0][0], row[0][1], row[0][2],row[0][4])
+                                            #print(row)
+                                            #print(int(current_key), row[0][3], row[0][0], row[0][1], row[0][2],row[0][4])
                                             self.saver.update_cell(int(current_key), row[0][3], row[0][0], row[0][1], row[0][2],row[0][4])
                                     elif(self.round == "protrusion") & (len(self.pts_dict.keys()) > 0):
                                         for current_key in self.pts_dict.keys():
                                             row = self.pts_dict[current_key][0]
-                                            print(row)
-                                            print([[row[0][0], row[0][1]],[row[1][0], row[1][1]]], int(current_key), row[0][3], row[0][2],row[0][4], [[row[2][0], row[2][1]],[row[3][0], row[3][1]]])
+                                            #print(row)
+                                            #print([[row[0][0], row[0][1]],[row[1][0], row[1][1]]], int(current_key), row[0][3], row[0][2],row[0][4], [[row[2][0], row[2][1]],[row[3][0], row[3][1]]])
                                             self.saver.update_vector([[row[0][0], row[0][1]],[row[1][0], row[1][1]]], int(current_key), row[0][3], row[0][2],row[0][4], [[row[2][0], row[2][1]],[row[3][0], row[3][1]]])
+
+                                        self.prev_prot = self.pts_dict
                                 elif kk == 101: #clear e
                                     self.n_clicks = 0
                                     self.pts = []
