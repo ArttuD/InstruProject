@@ -80,18 +80,14 @@ class manual_tracker():
     def click_event(self, event, x, y, flags, params):
 
         if event == cv2.EVENT_LBUTTONDOWN:
-            print(event, x, y)
-            
             if (self.n_clicks == 0) & (self.round == "cells"):
                 self.pts_dict[self.cell_object_num] = []
-
             elif (self.n_clicks == 0) & (self.round == "protrusion"):
-
-                ret = self.check_if_close(x,y)
+                ret = self.check_if_close(x*self.converter,y*self.converter)
                 if ret != -1:
                      self.spheroid_object_num = ret
                 else:
-                    for probe in np.arange(0,100):
+                    for probe in np.arange(1,100):
                         if probe not in self.pts_dict.keys():
                             self.spheroid_object_num = probe
                             break
@@ -119,9 +115,19 @@ class manual_tracker():
                 self.cell_object_num += 1
                 self.n_clicks = 0
 
+            print(self.spheroid_object_num, self.cell_object_num,self.n_clicks, x, y)
         elif event == cv2.EVENT_RBUTTONDOWN:
-            self.n_clicks = 0
-            if len(self.pts) == 0:
+
+
+            if (len(self.pts) == 0):
+
+                last_key = list(self.pts_dict)[-1]
+                removed_tuple = self.pts_dict.pop(last_key)
+                if self.round == "protrusion":
+                    self.spheroid_object_num -= 1
+                else:
+                    self.cell_object_num -= 1
+            elif (self.round == "protrusion"):
                 last_key = list(self.pts_dict)[-1]
                 removed_tuple = self.pts_dict.pop(last_key)
             else:
@@ -129,46 +135,47 @@ class manual_tracker():
                 
             self.img_moc = self.img.copy()
             self.re_show()
-        
+
+            self.n_clicks = 0
+
         if self.round == "protrusion":
             self.draw_circles()
 
         cv2.imshow("window", cv2.resize(self.img_moc, (self.scaled_size,self.scaled_size)) )
 
-    
+        
     def re_show(self):
 
         for current_key in self.pts_dict.keys():
-
             pts = self.pts_dict[current_key]
-            if len(pts) == 1:
-                print(pts)
+            if self.round == "cells":
                 self.img_moc = cv2.circle(self.img_moc, pts[0][0][:2], radius=5, color=(0, 255, 255), thickness=-1)
-            elif len(pts) == 4:
+            elif self.round == "protrusion":
                 self.img_moc = cv2.circle(self.img_moc, pts[0][0][:2], radius=10, color=(0, 0, 255), thickness=4)
-                self.img_moc = cv2.arrowedLine(self.img_moc, pts[0][0][:2], pts[0][1][:2], (0, 0, 255)  , 9)
+                self.img_moc = cv2.arrowedLine(self.img_moc, pts[0][0][:2], pts[0][1][:2], (0, 0, 255)  , 5)
                 self.img_moc = cv2.circle(self.img_moc, (pts[0][2][0], pts[0][2][1]), radius=5, color=(255, 0, 255), thickness=-1)
-                self.img_moc = cv2.line(self.img_moc, pts[0][2][:2], pts[0][3][:2], (255, 255, 0)  , 9)
+                self.img_moc = cv2.line(self.img_moc, pts[0][2][:2], pts[0][3][:2], (255, 0, 255)  , 5)
 
-        windowText = "method {}, t={}, z={}, v={}".format(self.round , self.t_start, self.z_start, self.k)
-        cv2.putText(self.img_moc, windowText,(150, 150), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 5)
+        windowText = r"timestep {}, method {} \n t={}/{}, z={}/{}, v={}/{}".format(self.t_backup, self.round , self.t_start, self.metas["n_frames"], self.z_start, self.metas["n_levels"], self.k, self.metas["n_fields"])
+        cv2.putText(self.img_moc, windowText,(150, 150), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 2)
         
     def draw_circles(self):
 
         for x,y,id in zip(self.prev_prot["x"].values, self.prev_prot["y"].values, self.prev_prot["cell_id"].values):
             windowText = "id_{}".format(id)
-            cv2.putText(self.img_moc, windowText,(x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 255, 0), 5)
-            self.img_moc = cv2.circle(self.img_moc, (x,y), radius= 30, color=(0, 255, 0), thickness=4)
+            cv2.putText(self.img_moc, windowText,(x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+            self.img_moc = cv2.circle(self.img_moc, (x,y), radius= 20, color=(0, 255, 0), thickness=4)
 
     def check_if_close(self, x_clicked, y_clicked):
         min_distance = 1000
         idx = - 1
         for x,y,id in zip(self.prev_prot["x"].values, self.prev_prot["y"].values, self.prev_prot["cell_id"].values):
-            distance = np.sqrt((x-x_clicked) + (y-y_clicked))
+
+            distance = np.sqrt((x-x_clicked)**2 + (y-y_clicked)**2)
             if distance < min_distance:
                 min_distance = distance
                 idx = id
-        if min_distance < 30:
+        if min_distance < 20:
             return idx
         else:
             return -1
@@ -238,9 +245,12 @@ class manual_tracker():
 
                             # put coordinates as text on the image
                             self.img = self.fetch_image(images, self.t_start, self.z_start, k)
+
+                            self.t_backup = self.t_start.copy()
+
                             self.img_moc = self.img.copy()
-                            windowText = "method {}, t={}, z={}, v={}".format(self.round , self.t_start, self.z_start, self.k)
-                            cv2.putText(self.img_moc, windowText,(150, 150), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 5)
+                            windowText = r'timestep {}, method {} t={}/{}, z={}/{}, v={}/{}'.format(self.t_backup, self.round , self.t_start, self.metas["n_frames"], self.z_start, self.metas["n_levels"], self.k, self.metas["n_fields"])
+                            cv2.putText(self.img_moc, windowText,(150, 150), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 2)
 
                             while choosing:
 
@@ -250,8 +260,13 @@ class manual_tracker():
                                 # add wait key. window waits until user presses a key
                                 kk = cv2.waitKey(0)
                                 # and finally destroy/close all open windows
+                                if (kk== 113) & (self.n_clicks != 0):
+                                    windowText = "Finish clicking!".format()
+                                    cv2.putText(self.img_moc, windowText,(75, 75), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
-                                if kk == 113: #Exit q
+                                    cv2.imshow("window", cv2.resize(self.img_moc, (self.scaled_size,self.scaled_size)) )
+                                elif kk == 113: #Exit q
+
                                     choosing = False
                                     print("exisiting methods")
                                     if (self.round == "cells") & (len(self.pts_dict.keys()) > 0):
@@ -268,16 +283,18 @@ class manual_tracker():
                                             self.saver.update_vector([[row[0][0], row[0][1]],[row[1][0], row[1][1]]], int(current_key), row[0][3], row[0][2],row[0][4], [[row[2][0], row[2][1]],[row[3][0], row[3][1]]])
 
                                         self.prev_prot = self.saver.return_timestep(self.t_start, self.k)
+                                        print(self.prev_prot)
 
                                 elif kk == 101: #clear e
                                     self.n_clicks = 0
                                     self.pts = []
-                                    self.object_num = 0
+                                    self.spheroid_object_num = 0
+                                    self.cell_object_num = 0
                                     self.pts_dict = {}
                                     self.img_moc = self.img.copy()
-                                    windowText = "method {}, t={}/{}, z={}/{}, v={}/{}".format(self.round , self.t_start, self.metas["n_frames"], self.z_start, self.metas["n_levels"], self.k, self.metas["n_fields"])
 
-                                    cv2.putText(self.img_moc, windowText,(150, 150), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 5)
+                                    windowText = r"timestep {}, method {} \nt={}/{}, z={}/{}, v={}/{}".format(self.t_backup, self.round , self.t_start, self.metas["n_frames"], self.z_start, self.metas["n_levels"], self.k, self.metas["n_fields"])
+                                    cv2.putText(self.img_moc, windowText,(150, 150), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 2)
                                 elif kk == 119: #Move z up w
                                     self.z_start += 1
                                     if self.z_start == self.metas["n_levels"]:
