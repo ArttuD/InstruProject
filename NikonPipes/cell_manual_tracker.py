@@ -35,15 +35,17 @@ class manual_tracker():
     
     def check_logged(self):
         log_files = glob.glob(os.path.join(self.results, "log_single.npy"))
+
         if len(log_files) == 0:
             return -1
         else:
-            log_file = np.load("log_single.npy")
+            log_file = np.load(os.path.join(self.results, "log_single.npy"))
             self.n_start = log_file[0]; self.t_start = log_file[1]
             return 1
         
     def save_logged(self):
         info = np.array((self.k, self.t_start))
+
         np.save( os.path.join(self.results,"log_single.npy"), info)
         
     def fetch_image(self, images, j, z, k):
@@ -82,12 +84,17 @@ class manual_tracker():
             
             if (self.n_clicks == 0) & (self.round == "cells"):
                 self.pts_dict[self.cell_object_num] = []
+
             elif (self.n_clicks == 0) & (self.round == "protrusion"):
-                for probe in self.prev_prot.keys():
-                    row = self.pts_dict[probe][0]
-                    if 10 > np.sqrt((x-row[0][0])**2 + (y-row[0][1])**2):
-                        self.spheroid_object_num = int(probe)
-                
+
+                ret = self.check_if_close(x,y)
+                if ret != -1:
+                     self.spheroid_object_num = ret
+                else:
+                    for probe in np.arange(0,100):
+                        if probe not in self.pts_dict.keys():
+                            self.spheroid_object_num = probe
+
                 self.pts_dict[self.spheroid_object_num] = []
 
             self.n_clicks += 1 
@@ -103,9 +110,7 @@ class manual_tracker():
                 self.img_moc = cv2.line(self.img_moc, self.pts[2][:2], self.pts[3][:2], (255, 0, 255) , 5)
                 self.pts_dict[self.spheroid_object_num].append(self.pts)
                 self.pts = []
-                self.spheroid_object_num += 1
                 self.n_clicks = 0
-
             elif (self.n_clicks == 1) & (self.round == "cells"):
                 self.img_moc = cv2.circle(self.img_moc, self.pts[0][:2], radius=5, color=(0, 255, 255), thickness=-1)
                 self.pts_dict[self.cell_object_num].append(self.pts)
@@ -123,6 +128,9 @@ class manual_tracker():
                 
             self.img_moc = self.img.copy()
             self.re_show()
+        
+        if self.round == "protrusion":
+            self.draw_circles()
 
         cv2.imshow("window", cv2.resize(self.img_moc, (self.scaled_size,self.scaled_size)) )
 
@@ -144,6 +152,25 @@ class manual_tracker():
         windowText = "method {}, t={}, z={}, v={}".format(self.round , self.t_start, self.z_start, self.k)
         cv2.putText(self.img_moc, windowText,(150, 150), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 5)
         
+    def draw_circles(self):
+
+        for x,y,id in zip(self.prev_prot["x"].values, self.prev_prot["y"].values, self.prev_prot["cell_id"].values):
+            windowText = "id_{}".format(id)
+            cv2.putText(self.img_moc, windowText,(x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 255, 0), 5)
+            self.img_moc = cv2.circle(self.img_moc, (x,y), radius= 30, color=(0, 255, 0), thickness=4)
+
+    def check_if_close(self, x_clicked, y_clicked):
+        min_distance = 1000
+        idx = - 1
+        for x,y,id in zip(self.prev_prot["x"].values, self.prev_prot["y"].values, self.prev_prot["cell_id"].values):
+            distance = np.sqrt((x-x_clicked) + (y-y_clicked))
+            if distance < min_distance:
+                min_distance = distance
+                idx = id
+        if min_distance < 30:
+            return idx
+        else:
+            return -1
 
     def process(self):
 
@@ -194,7 +221,8 @@ class manual_tracker():
 
                     self.cell_object_num = 0
                     self.spheroid_object_num = 0
-                    self.prev_prot = {}
+                    self.prev_prot = self.saver.return_timestep(self.t_start, self.k)
+
 
                     while t_cap:
 
@@ -238,7 +266,8 @@ class manual_tracker():
                                             #print([[row[0][0], row[0][1]],[row[1][0], row[1][1]]], int(current_key), row[0][3], row[0][2],row[0][4], [[row[2][0], row[2][1]],[row[3][0], row[3][1]]])
                                             self.saver.update_vector([[row[0][0], row[0][1]],[row[1][0], row[1][1]]], int(current_key), row[0][3], row[0][2],row[0][4], [[row[2][0], row[2][1]],[row[3][0], row[3][1]]])
 
-                                        self.prev_prot = self.pts_dict
+                                        self.prev_prot = self.saver.return_timestep(self.t_start, self.k)
+
                                 elif kk == 101: #clear e
                                     self.n_clicks = 0
                                     self.pts = []
@@ -246,6 +275,7 @@ class manual_tracker():
                                     self.pts_dict = {}
                                     self.img_moc = self.img.copy()
                                     windowText = "method {}, t={}/{}, z={}/{}, v={}/{}".format(self.round , self.t_start, self.metas["n_frames"], self.z_start, self.metas["n_levels"], self.k, self.metas["n_fields"])
+
                                     cv2.putText(self.img_moc, windowText,(150, 150), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 5)
                                 elif kk == 119: #Move z up w
                                     self.z_start += 1
@@ -294,6 +324,7 @@ class manual_tracker():
                             self.pts_dict = {}
 
                         self.save_logged()
+                        
                         if self.t_start == self.metas["n_frames"]:
                             t_cap = False
                         else:

@@ -12,11 +12,19 @@ class Cells():
     def __init__(self, path):
 
         self.path = path
+        self.prot_table = None
+
         self.reset_frame()
 
     def reset_frame(self):
-        self.data_dict =  {"cell_id": [], "time": [], "location": [], "x": [], "y": [], "z": [], "lenght":[], "x_vec":[], "y_vec":[], "angle":[], "width":[] }
+        self.data_dict =  {"cell_id": [], "time": [], "location": [], "x": [], "y": [], "z": [],"x2": [], "y2": [], "z2": [], "lenght":[], "x_vec":[], "y_vec":[], "angle":[], "width":[] }
         self.data_dict_ =  {"cell_id": [], "time": [], "location": [], "x": [], "y": [], "z": []}
+
+        df = pd.DataFrame.from_dict(self.data_dict)
+        self.prot_table = df
+
+    def return_timestep(self, time, location):
+        return self.prot_table[(self.prot_table["location"] == location) & (self.prot_table["time"] == time)].reset_index(drop=True)
 
     def update_cell(self, det_id, t, x1, y1, z1, loc):
         
@@ -46,6 +54,9 @@ class Cells():
         self.data_dict["x"].append(x1)
         self.data_dict["y"].append(y1)
         self.data_dict["z"].append(z)
+        self.data_dict["x2"].append(x2)
+        self.data_dict["y2"].append(y2)
+        self.data_dict["z2"].append(z)
         
         self.data_dict["x_vec"].append(x_vec)
         self.data_dict["y_vec"].append(y_vec)
@@ -62,6 +73,7 @@ class Cells():
 
         self.save_data("vector")
 
+    
     def save_data(self, ctr):
 
         if ctr == "cell":
@@ -72,5 +84,6 @@ class Cells():
         if ctr == "vector":
             print("save vector")
             df = pd.DataFrame.from_dict(self.data_dict)
+            self.prot_table = df
             df.to_csv(os.path.join(self.path, "{}_vector.csv".format(self.path)), index = False)
     
