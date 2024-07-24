@@ -351,8 +351,7 @@ class manual_tracker():
             if kk == 114:
                 break
 
-                        
-
+        cv2.destroyAllWindows()
 
 if __name__ == "__main__":
 
