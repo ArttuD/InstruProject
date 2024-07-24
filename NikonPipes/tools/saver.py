@@ -3,6 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import pandas as pd
 import math as m
+from glob import glob
 
 def vector_2d_length(v):
     return m.sqrt((v[0]-v[2]) ** 2 + (v[1]-v[3]) ** 2)
@@ -13,8 +14,17 @@ class Cells():
 
         self.path = path
         self.prot_table = None
-
         self.reset_frame()
+        self.search_old()
+
+    def search_old(self):
+        vector = glob(os.path.join( self.path,"*_vector.csv"))
+        cells = glob(os.path.join( self.path,"*_vector.csv"))
+        print(vector, cells)
+        if len(vector) > 0:
+            self.data_dict = pd.read_csv(vector[0]).to_dict('series')
+        if len(cells) > 0: 
+            self.data_dict_ = pd.read_csv(cells[0]).to_dict('series')
 
     def reset_frame(self):
         self.data_dict =  {"cell_id": [], "time": [], "location": [], "x": [], "y": [], "z": [],"x2": [], "y2": [], "z2": [], "lenght":[], "x_vec":[], "y_vec":[], "angle":[], "width":[] }
@@ -23,8 +33,8 @@ class Cells():
         df = pd.DataFrame.from_dict(self.data_dict)
         self.prot_table = df
 
-    def return_timestep(self, time, location):
-        return self.prot_table[(self.prot_table["location"] == location) & (self.prot_table["time"] == time)].reset_index(drop=True)
+    def return_timestep(self,location):
+        return self.prot_table[(self.prot_table["location"] == location)].reset_index(drop=True)
 
     def update_cell(self, det_id, t, x1, y1, z1, loc):
         
@@ -79,11 +89,12 @@ class Cells():
         if ctr == "cell":
             print("saved track")
             df = pd.DataFrame.from_dict(self.data_dict_)
-            df.to_csv(os.path.join(self.path, "{}_track.csv".format(self.path)), index = False)
+            df.to_csv(os.path.join(self.path, "data_track.csv"), index = False)
         
         if ctr == "vector":
             print("save vector")
             df = pd.DataFrame.from_dict(self.data_dict)
             self.prot_table = df
-            df.to_csv(os.path.join(self.path, "{}_vector.csv".format(self.path)), index = False)
+            df.to_csv(os.path.join(self.path, "data_vector.csv"), index = False)
+
     

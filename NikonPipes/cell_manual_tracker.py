@@ -87,7 +87,7 @@ class manual_tracker():
                 if ret != -1:
                      self.spheroid_object_num = ret
                 else:
-                    for probe in np.arange(1,100):
+                    for probe in np.arange(1,1000):
                         if probe not in self.pts_dict.keys():
                             self.spheroid_object_num = probe
                             break
@@ -194,7 +194,9 @@ class manual_tracker():
             self.video_name = os.path.split(video_path)[-1][:-4]
             self.root_path = os.path.split(video_path)[0]
             self.results = os.path.join(self.root_path, "results_{}".format(self.video_name))
+
             self.saver = Cells(self.results)
+
             self.saver.reset_frame()
 
             _ = self.check_logged()
@@ -229,7 +231,7 @@ class manual_tracker():
 
                     self.cell_object_num = 0
                     self.spheroid_object_num = 0
-                    self.prev_prot = self.saver.return_timestep(self.t_start, self.k)
+                    self.prev_prot = self.saver.return_timestep(self.k)
 
 
                     while t_cap:
@@ -246,7 +248,7 @@ class manual_tracker():
                             # put coordinates as text on the image
                             self.img = self.fetch_image(images, self.t_start, self.z_start, k)
 
-                            self.t_backup = self.t_start.copy()
+                            self.t_backup = self.t_start
 
                             self.img_moc = self.img.copy()
                             windowText = r'timestep {}, method {} t={}/{}, z={}/{}, v={}/{}'.format(self.t_backup, self.round , self.t_start, self.metas["n_frames"], self.z_start, self.metas["n_levels"], self.k, self.metas["n_fields"])
@@ -282,8 +284,8 @@ class manual_tracker():
                                             #print([[row[0][0], row[0][1]],[row[1][0], row[1][1]]], int(current_key), row[0][3], row[0][2],row[0][4], [[row[2][0], row[2][1]],[row[3][0], row[3][1]]])
                                             self.saver.update_vector([[row[0][0], row[0][1]],[row[1][0], row[1][1]]], int(current_key), row[0][3], row[0][2],row[0][4], [[row[2][0], row[2][1]],[row[3][0], row[3][1]]])
 
-                                        self.prev_prot = self.saver.return_timestep(self.t_start, self.k)
-                                        print(self.prev_prot)
+                                        self.prev_prot = self.saver.return_timestep(self.k)
+
 
                                 elif kk == 101: #clear e
                                     self.n_clicks = 0
