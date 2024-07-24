@@ -49,7 +49,7 @@ class Cells():
         
         self.data_dict["x_vec"].append(x_vec)
         self.data_dict["y_vec"].append(y_vec)
-        self.data_dict["lenght"].append(vector_2d_length(x1,y1,x2,y2))
+        self.data_dict["lenght"].append(vector_2d_length([x1,y1,x2,y2]))
         self.data_dict["angle"].append(np.arctan2(y_vec, x_vec))
 
         x1 = coords_[0][0]
@@ -58,7 +58,7 @@ class Cells():
         x2 = coords_[1][0]
         y2 = coords_[1][1]
 
-        self.data_dict["width"].append(vector_2d_length(x1,y1,x2,y2))
+        self.data_dict["width"].append(vector_2d_length([x1,y1,x2,y2]))
 
         self.save_data("vector")
 

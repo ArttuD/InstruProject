@@ -43,7 +43,7 @@ class manual_tracker():
             return 1
         
     def save_logged(self):
-        info = np.array(self.k, self.t_start)
+        info = np.array((self.k, self.t_start))
         np.save( os.path.join(self.results,"log_single.npy"), info)
         
     def fetch_image(self, images, j, z, k):
