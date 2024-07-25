@@ -66,8 +66,6 @@ class Change_Level():
 
 class PostProcess():
 
-
-
     def __init__(self) -> None:
         
 
@@ -83,20 +81,22 @@ class PostProcess():
         self.data_dict = None
         self.current_key = None
 
+        self.right_clicked = False
+
 
     def find_paths(self):
 
         root_path = "D:/instru_projects/TimeLapses/u-wells/*"
         target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
-        root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
-        target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
-
-        root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
-        target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
-
-        root_path_2 = "G:/instru_projects/TimeLapses/u-wells/*"
-        target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
+        #root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
+        #target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
+#
+        #root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
+        #target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
+#
+        #root_path_2 = "G:/instru_projects/TimeLapses/u-wells/*"
+        #target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
 
         for i in target_paths:
             print(i)
@@ -104,33 +104,47 @@ class PostProcess():
         return target_paths
     
     def click_event(self, event, x, y, flags, params):
-        
-        if event == cv2.EVENT_LBUTTONDOWN:
+
+        if self.right_clicked:
+
+            self.pts.append([int(x*self.scaler),int(y*self.scaler)])
+            self.img_ = self.img_bf.copy()
+            pts_ = np.array(self.pts).reshape((-1, 1, 2))
+
+            self.img_ = cv2.circle(self.img_, self.pts[0], radius=15, color=(0, 255, 255), thickness=2)
+
+            self.img_ = cv2.polylines(self.img_, [pts_], 
+                            True, (255, 0, 0), 2)
+
+            distance =  np.sqrt((self.pts[-1][0] - self.pts[0][0])**2 + (self.pts[-1][1] - self.pts[0][1])**2)
+
+            if (distance< 30) & (len(self.pts) > 30): 
+
+                self.right_clicked = False
+
+                self.img_ = cv2.polylines(self.img_, [pts_], 
+                True, (255, 0, 255), 2)
+
+
+        elif event == cv2.EVENT_LBUTTONDOWN:
             #print(f'({x},{y})')
 
             self.pts.append([int(x*self.scaler),int(y*self.scaler)])
-            pts_ = np.array(self.pts).reshape((-1, 1, 2))
+            self.right_clicked = True
+            self.img_ = cv2.circle(self.img_, self.pts[0], radius=15, color=(0, 255, 255), thickness=-1)
+
+        elif event == cv2.EVENT_RBUTTONDOWN:
+            self.right_clicked = False
 
             self.img_ = self.img_bf.copy()
-            self.img_ = cv2.polylines(self.img_, [pts_], 
-                            True, (255, 0, 0), 2)
-            
-            cv2.imshow("window", cv2.resize(self.img_, (self.scaled_size,self.scaled_size)) )
-
-        if event == cv2.EVENT_RBUTTONDOWN:
-            if len(self.pts) > 0:
-                del self.pts[-1]
-                pts_ = np.array(self.pts).reshape((-1, 1, 2))
-
-                self.img_ = self.img_bf.copy()
-                self.img_ = cv2.polylines(self.img_, [pts_], 
-                                True, (255, 0, 0), 2)
+            self.pts = []
                 
-                cv2.imshow("window", cv2.resize(self.img_, (self.scaled_size,self.scaled_size)) )
+        
+        cv2.imshow("window", cv2.resize(self.img_, (self.scaled_size,self.scaled_size)) )
 
     def pipe(self):
 
-        for video_path in tqdm.tqdm(self.target_paths[-1:], total=len(self.target_paths[-1:])):
+        for video_path in tqdm.tqdm(self.target_paths[:1], total=len(self.target_paths[:1])):
             print(video_path)
             video_name = os.path.split(video_path)[-1][:-4]
             root_path = os.path.split(video_path)[0]
@@ -140,11 +154,11 @@ class PostProcess():
             day = str(parts[0])
             self.coords = self.own_meta[day]["coords"]
 
-            focus_path = glob.glob(os.path.join(results, "corrected_focus_indixes.pkl")) #*_indixes.pkl
+            focus_path = glob.glob(os.path.join(results, "focus_indixes.pkl")) #*_indixes.pkl
             with open(focus_path[0], 'rb') as f:
                 self.focus_dict = pickle.load(f)   
 
-            pickel_path = os.path.join(results,"{}_corrected_detections.pkl".format(video_name))
+            pickel_path = os.path.join(results,"{}_detections.pkl".format(video_name))
             with open(pickel_path, 'rb') as f:
                 self.data_dict = pickle.load(f)
 
@@ -170,7 +184,7 @@ class PostProcess():
 
 
 
-                for k in range(9,metas["n_fields"]): 
+                for k in range(metas["n_fields"]): 
 
                     self.current_key = "loc_{}_ch_{}".format(k, 1)
                     if (day == "230418") & (k == 2):
@@ -218,7 +232,9 @@ class PostProcess():
                         try:
                             img_bf = images.get_frame_2D(c=idx_bf, t=j, z=idx, x=0, y=0, v=k)
                         except:
-                            img_bf = images.get_frame_2D(c=idx_bf, t=j-1, z=start_idx, x=0, y=0, v=loc)
+                            img_bf = images.get_frame_2D(c=idx_bf, t=j-1, z=idx, x=0, y=0, v=k)
+
+
                         img_bf = (img_bf/(2**16)*2**8).astype("uint8")
                         img_bf = np.stack((img_bf, img_bf, img_bf), axis = -1)
                         
@@ -253,6 +269,7 @@ class PostProcess():
                             j_ += 1
 
                         if (j == metas["n_frames"]-1):
+
                             self.handler =  Change_Level(fig, ax, img_plots, "./dataStore", metas)
                             fig.suptitle("Frames {}/{}".format(j+1, metas["n_frames"]))
                             fig.tight_layout()
@@ -260,8 +277,8 @@ class PostProcess():
                             
                             self.handler.disconnect()
                             self.response_vals = np.array(self.handler.manual)
-
-                            self.process(metas, idx_bf, k, j-8, images)
+                            #print("reducing", metas["n_frames"]%9)
+                            self.process(metas, idx_bf, k, j-metas["n_frames"]%9+1, images)
 
                             break
                     
@@ -330,10 +347,15 @@ class PostProcess():
 
             #kk = cv2.waitKey(0)
             if len(self.pts) > 0:
+
                 pts_ = np.array(self.pts).reshape((-1, 1, 2))
                 self.img_ = np.zeros_like(self.img_bf)
                 self.img_ = cv2.polylines(self.img_, [pts_], True, (255, 0, 0), 2)
                 imgB = cv2.cvtColor(self.img_.copy(), cv2.COLOR_BGR2GRAY)
+
+                #plt.imshow(imgB)
+                #plt.show()
+
                 contours, hierarchy = cv2.findContours(image=imgB, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
                 c = max(contours, key=cv2.contourArea)
 
