@@ -73,10 +73,13 @@ class focus_detector():
 
         self.focus_dict = {}
 
+        self.alpha = 0.3
+        self.beta = ( 1.0 - self.alpha )
+
 
     def find_paths(self):
 
-        root_path = "D:/instru_projects/TimeLapses/u-wells/*"
+        root_path = "E:/instru_projects/TimeLapses/u-wells/*"
         target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
         #root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
@@ -163,6 +166,9 @@ class focus_detector():
 
                             img_fl = images.get_frame_2D(c=idx_fl, t=j, z=idx, x=0, y=0, v=k)
                             img_bf = images.get_frame_2D(c=idx_bf, t=j, z=idx, x=0, y=0, v=k)
+                            im = cv2.addWeighted( img_bf, self.alpha, img_fl, self.beta, 0.0, 0.0)
+                            im = (im/(2**16)*2**8).astype("uint8")
+                            img_vis = np.stack((im,im,im), axis = -1)
 
                         else:
                             for z in range(metas["n_levels"]):
@@ -182,13 +188,13 @@ class focus_detector():
 
                             img_bf = images.get_frame_2D(c=0, t=j, z=idx, x=0, y=0, v=k)
 
-                        img_bf = (img_bf/(2**16)*2**8).astype("uint8")
-                        img_bf = np.stack((img_bf, img_bf, img_bf), axis = -1)
+                            img_bf = (img_bf/(2**16)*2**8).astype("uint8")
+                            img_vis = np.stack((img_bf, img_bf, img_bf), axis = -1)
 
                         if j !=0 and j%plot_ind == 0:
                             sub += 1
 
-                        img_cropped_vis = img_bf[x_final[1]:y_final[1], x_final[0]:y_final[0]]
+                        img_cropped_vis = img_vis[x_final[1]:y_final[1], x_final[0]:y_final[0]]
                         #img_cropped_vis = skimage.exposure.equalize_hist(img_cropped_vis)
 
                         img_plots[j] = ax[sub,j%plot_ind].imshow(cv2.resize(img_cropped_vis, (512,512)))
@@ -227,6 +233,7 @@ class focus_detector():
 
                             img_bf = (img_bf/(2**16)*2**8).astype("uint8")
                             img_bf = np.stack((img_bf, img_bf, img_bf), axis = -1)
+
                             windowText = "t={}, z={}, v={}".format( id_repair, start_idx, k)
 
                             #img_bf = skimage.exposure.equalize_hist(img_bf)
@@ -264,8 +271,8 @@ class focus_detector():
                     self.focus_dict[k] = max_indices
                     #print(self.focus_dict)
 
-                    with open(os.path.join(results, 'focus_indixes.pkl'), 'wb') as f:
-                        pickle.dump(self.focus_dict, f)
+                    #with open(os.path.join(results, 'focus_indixes.pkl'), 'wb') as f:
+                    #    pickle.dump(self.focus_dict, f)
 
                 
         return 1

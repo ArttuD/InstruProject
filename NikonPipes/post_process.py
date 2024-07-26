@@ -86,7 +86,7 @@ class PostProcess():
 
     def find_paths(self):
 
-        root_path = "D:/instru_projects/TimeLapses/u-wells/*"
+        root_path = "E:/instru_projects/TimeLapses/u-wells/*"
         target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
         #root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"

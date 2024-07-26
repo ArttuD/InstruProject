@@ -18,13 +18,24 @@ from skimage.morphology import disk
 from tools.func import *
 
 
-def process_FL(img_bf, img_fl, x_start, y_start):
+def process_FL(img_bf, img_fl, x_start, y_start, otsu_flag):
+
 
     img_fl = scipy.ndimage.gaussian_filter(img_fl, (3,3))
-    tuned_fl = Kittler_16(img_fl, np.empty_like(img_fl))
-    tuned_fl = closing(tuned_fl,disk(5))
-    frame = (tuned_fl/(2**16)*2**8).astype("uint8")
 
+    if otsu_flag:
+        img_ = skimage.exposure.equalize_adapthist(img_fl, clip_limit=0.03)
+        img_ = cv2.normalize(img_, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+        ret2,th2 = cv2.threshold(img_.astype("uint8"),0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+        th2 = dilation(th2, disk(5))
+        frame = closing(th2, disk(5))
+
+        #frame = dilation(frame, disk(5))
+        #frame = closing(frame, disk(5))
+    else:
+        tuned_fl = Kittler_16(img_fl, np.empty_like(img_fl))
+        #tuned_fl = closing(tuned_fl,disk(5))
+        frame = (tuned_fl/(2**16)*2**8).astype("uint8")
 
     contours, hierarchy = cv2.findContours(image=frame, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE) 
 
@@ -104,7 +115,12 @@ def process_BF(img_bf, x_start, y_start, local_flag):
 
     return out_vis, x, y, r, prev, idx_big, contours, x_start, y_start
 
-root_path = "D:/instru_projects/TimeLapses/u-wells/*"
+
+otsu_list = [[1,2,3]]
+otsu_list_counter = 0
+otsu_flag = False
+
+root_path = "E:/instru_projects/TimeLapses/u-wells/*"
 target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
 #root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
@@ -129,10 +145,12 @@ local_flag = False
 with open('./dataStore/metalib.json', 'r') as f:
   own_meta = json.load(f)
 
-
 scaler = 350
 
 for video_path in tqdm.tqdm(target_paths[:1], total=len(target_paths[:1])):
+
+    otsu_files = otsu_list[otsu_list_counter]
+    otsu_list_counter += 1
 
     print("Analyzing: ", video_path)
     video_name = os.path.split(video_path)[-1][:-4]
@@ -182,6 +200,11 @@ for video_path in tqdm.tqdm(target_paths[:1], total=len(target_paths[:1])):
             
             flag_tracking = True
 
+            if k in otsu_files:
+                otsu_flag = True
+            else:
+                otsu_flag = False
+
             if k < len(own_meta[day]["cell"]):
                 line_name = own_meta[day]["cell"][k]
             else:
@@ -226,7 +249,7 @@ for video_path in tqdm.tqdm(target_paths[:1], total=len(target_paths[:1])):
                     img_fl = images.get_frame_2D(c=idx_fl, t=j, z=idx, x=0, y=0, v=k)
                     img_bf = images.get_frame_2D(c=idx_bf, t=j, z=idx, x=0, y=0, v=k)
 
-                    out_vis, x, y, r, prev, big_idx, contours, x_final, y_final = process_FL(img_bf, img_fl, x_final, y_final)
+                    out_vis, x, y, r, prev, big_idx, contours, x_final, y_final = process_FL(img_bf, img_fl, x_final, y_final, otsu_flag)
                 else:
                     if focus_flag:
                         idx = int(focus_dict[k][j])

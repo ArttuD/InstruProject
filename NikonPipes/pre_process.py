@@ -44,7 +44,7 @@ skip_existing = False
 map_coord = True
 parse_flag = True
 
-root_path = "D:/instru_projects/TimeLapses/u-wells/*"
+root_path = "E:/instru_projects/TimeLapses/u-wells/*"
 target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
 #root_path_2 = "D:/instru_projects/TimeLapses/u-wells/*"
@@ -61,6 +61,7 @@ with open('./dataStore/metalib.json', 'r') as f:
 coord_dict = {}
 
 for video_path in target_paths:
+    
     print(video_path)
     parts = os.path.split(video_path)[-1].split("_")
     day = str(parts[0])
