@@ -86,7 +86,7 @@ class PostProcess():
 
     def find_paths(self):
 
-        root_path = "E:/instru_projects/TimeLapses/u-wells/*"
+        root_path = "G:/instru_projects/TimeLapses/u-wells/*"
         target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
         #root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
@@ -139,36 +139,73 @@ class PostProcess():
             self.img_ = self.img_bf.copy()
             self.pts = []
                 
-        
         cv2.imshow("window", cv2.resize(self.img_, (self.scaled_size,self.scaled_size)) )
+
+    def video_saver(self, imgs, mask, big_idx, loc):
+        
+        
+        out_name = os.path.join(self.results,'{}_{}_{}.mp4'.format(os.path.split(self.video_path)[1][:-4], (self.k_initial), (self.line_name) ) )
+        out_process = cv2.VideoWriter(out_name, cv2.VideoWriter_fourcc(*"mp4v"), 5, (2304,2304))
+        print("Generating video", out_name)
+
+        for i in range(len(imgs)):
+
+            if self.focus_dict[loc][i] == -1:
+                break
+
+            cnt = mask[i]
+            idx_big = big_idx[i]
+            process_img = imgs[i].copy()
+            cv2.drawContours(process_img, cnt, idx_big, (0, 0, 255), 3)
+            out_process.write(process_img)
+
+        out_process.release()
+        print("saving done!")
+
 
     def pipe(self):
 
-        for video_path in tqdm.tqdm(self.target_paths[:1], total=len(self.target_paths[:1])):
+        for video_path in tqdm.tqdm(self.target_paths, total=len(self.target_paths)):
+
             print(video_path)
+
             video_name = os.path.split(video_path)[-1][:-4]
             root_path = os.path.split(video_path)[0]
             results = os.path.join(root_path, "results_{}".format(video_name))
+
+            self.results = results; self.video_path = video_path
 
             parts = os.path.split(video_path)[-1].split("_")
             day = str(parts[0])
             self.coords = self.own_meta[day]["coords"]
 
-            focus_path = glob.glob(os.path.join(results, "focus_indixes.pkl")) #*_indixes.pkl
+            focus_path = glob.glob(os.path.join(results, "corrected_focus_indixes.pkl")) #*_indixes.pkl
+            if len(focus_path) == 0:
+                print("No focus correction!")
+                focus_path = glob.glob(os.path.join(results, "focus_indixes.pkl"))
+
             with open(focus_path[0], 'rb') as f:
                 self.focus_dict = pickle.load(f)   
 
-            pickel_path = os.path.join(results,"{}_detections.pkl".format(video_name))
+            pickel_path = os.path.join(results,"{}_corrected_detections.pkl".format(video_name))
+
+            if len(pickel_path) == 0:
+                print("No pkl corrected file!")
+                pickel_path = os.path.join(results,"{}_detections.pkl".format(video_name))
+
             with open(pickel_path, 'rb') as f:
                 self.data_dict = pickle.load(f)
 
-            if day not in self.own_meta.keys():
+            if (day not in self.own_meta.keys()) | (day == "240522"):
                 print(day, "Not in keys, skipping")
                 continue
 
             with ND2Reader(video_path) as images:
-
-                metas = load_metadata(images)
+                try:
+                    metas = load_metadata(images)
+                except:
+                    print("broken metafile", video_path)
+                    continue
 
                 if metas["n_channels"] == 2:
                     FL_flag = True
@@ -184,8 +221,14 @@ class PostProcess():
 
 
 
-                for k in range(metas["n_fields"]): 
+                for k in range(metas["n_fields"]):
 
+                    if k < len(self.own_meta[day]["cell"]):
+                        self.line_name = self.own_meta[day]["cell"][k]
+                    else:
+                        self.line_name = "unknown" 
+
+                    self.k_initial = k
                     self.current_key = "loc_{}_ch_{}".format(k, 1)
                     if (day == "230418") & (k == 2):
                         pass 
@@ -209,6 +252,7 @@ class PostProcess():
 
 
                     fig, ax = plt.subplots(3,3,figsize=(plot_ind,plot_ind))
+                    self.img_list_video = []
 
                     for j in range(metas["n_frames"]):
 
@@ -222,7 +266,10 @@ class PostProcess():
                             self.handler.disconnect()
                             self.response_vals = np.array(self.handler.manual)
 
-                            self.process(metas, idx_bf, k, j-8, images)
+                            if j%9 != 0:
+                                ret = self.process(metas, idx_bf, k, j-j%9, images)
+                            else:
+                                ret = self.process(metas, idx_bf, k, j-8, images)
 
                             break
 
@@ -237,7 +284,9 @@ class PostProcess():
 
                         img_bf = (img_bf/(2**16)*2**8).astype("uint8")
                         img_bf = np.stack((img_bf, img_bf, img_bf), axis = -1)
-                        
+
+                        self.img_list_video.append(img_bf.copy()) 
+
                         if mask.shape[0] > 0:
                             cv2.drawContours(img_bf, [mask], 0, (0, 0, 255), 3)
 
@@ -258,8 +307,14 @@ class PostProcess():
                             self.handler.disconnect()
                             self.response_vals = np.array(self.handler.manual)
 
-                            self.process(metas, idx_bf, k, j-8, images)
+                            if metas["n_fields"] < 9:
+                                ret = self.process(metas, idx_bf, k, j-(metas["n_fields"]-1), images)
+                            else:
+                                ret = self.process(metas, idx_bf, k, j-8, images)
 
+                            if ret == -1:
+                                break
+                            
                             sub = 0
                             j_ = 0
                             img_plots = [None]*9#*metas["n_frames"]
@@ -278,12 +333,15 @@ class PostProcess():
                             self.handler.disconnect()
                             self.response_vals = np.array(self.handler.manual)
                             #print("reducing", metas["n_frames"]%9)
-                            self.process(metas, idx_bf, k, j-metas["n_frames"]%9+1, images)
+                            ret = self.process(metas, idx_bf, k, j-j%9, images)
 
                             break
                     
+                    self.video_saver(self.img_list_video, self.data_dict[self.current_key]['mask'], self.data_dict[self.current_key]['big_idx'], k)
+
                     #print("Saving dicts")
                     with open(os.path.join(results,'{}_corrected_detections.pkl'.format(os.path.split(video_path)[1][:-4])), 'wb') as f:
+                        print("saving detections")
                         pickle.dump(self.data_dict, f)
 
                     with open(os.path.join(results,'corrected_focus_indixes.pkl'), 'wb') as f:
@@ -295,7 +353,7 @@ class PostProcess():
         cv2.namedWindow('window')
         # bind the callback function to window
         cv2.setMouseCallback('window', self.click_event)
-
+        start_idx = 0
         for id_repair in np.arange(metas["n_frames"]):
                 
             if self.response_vals[id_repair] == 0:
@@ -305,6 +363,7 @@ class PostProcess():
 
             self.pts = []
             choosing = True
+
             start_idx = int(self.focus_dict[loc][id_repair])
 
             #self.changed_countour = False
@@ -332,8 +391,10 @@ class PostProcess():
                 # and finally destroy/close all open windows
                 if kk == 113: #Exit 
                     choosing = False
-                elif kk == 101: #clear
+                elif kk == 101: #E end tracking
                     self.pts = []
+                    start_idx = - 1
+                    choosing = False
                 elif kk == 119: #Move up 
                     start_idx += 1
                     if start_idx == metas["n_levels"]:
@@ -365,11 +426,23 @@ class PostProcess():
 
             if int(self.focus_dict[loc][id_repair]) != start_idx:
 
-                print("saving focus location {} frame {} value".format(loc, id_repair, start_idx))
-                self.focus_dict[loc][id_repair] = start_idx
+                if start_idx == -1:
+                    print("Finishing tracking {} frame {} value".format(loc, id_repair, start_idx))
+                    self.focus_dict[loc][id_repair] = start_idx
+                    self.data_dict[self.current_key]['mask'] = self.data_dict[self.current_key]['mask'][:id_repair] 
+                    self.data_dict[self.current_key]['big_idx'] = self.data_dict[self.current_key]['big_idx'][:id_repair]
+                    break
+                else:
+                    self.img_list_video[id_repair] = img_bf.copy()
+                    print("saving focus location {} frame {} value".format(loc, id_repair, start_idx))
+                    self.focus_dict[loc][id_repair] = start_idx
             
         cv2.destroyAllWindows()
 
+        if start_idx == - 1:
+            return -1
+        else:
+            return 1
 
 
 if __name__ == "__main__":

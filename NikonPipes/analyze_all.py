@@ -105,6 +105,7 @@ def process_BF(img_bf, x_start, y_start, local_flag):
     else:
         cv2.drawContours(out_vis, contours, idx_big, (0, 0, 255), 3)
         (x, y), r = cv2.minEnclosingCircle(contours[idx_big])
+        
         x_start, y_start = check_box(x, y, r)
 
     #cv2.rectangle(out_vis, x_start, y_start, (255,0,0), 3)
@@ -120,7 +121,7 @@ otsu_list = [[1,2,3]]
 otsu_list_counter = 0
 otsu_flag = False
 
-root_path = "E:/instru_projects/TimeLapses/u-wells/*"
+root_path = "D:/instru_projects/TimeLapses/u-wells/*"
 target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
 #root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
@@ -147,7 +148,7 @@ with open('./dataStore/metalib.json', 'r') as f:
 
 scaler = 350
 
-for video_path in tqdm.tqdm(target_paths[:1], total=len(target_paths[:1])):
+for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
 
     otsu_files = otsu_list[otsu_list_counter]
     otsu_list_counter += 1
