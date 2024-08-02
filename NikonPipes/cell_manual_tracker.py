@@ -48,17 +48,19 @@ class manual_tracker():
             df_track = pd.read_csv(os.path.join(self.results, "data_track.csv"))
             df_vector = pd.read_csv(os.path.join(self.results, "data_vector.csv"))
 
-            self.cell_object_num = np.max(df_track["cell_id"].values)
-            self.spheroid_object_num = np.max(df_vector["cell_id"].values)
-
             self.saver.data_dict = {}
             self.saver.data_dict_ = {}
+
+            self.cell_object_num = np.max(df_track["cell_id"].values)
+            self.spheroid_object_num = np.max(df_vector["cell_id"].values)
 
             for count,key in enumerate(df_track.columns):
                 self.saver.data_dict_[key] = df_track[key].values.tolist()
 
             for count,key in enumerate(df_vector.columns):
                 self.saver.data_dict[key] = df_vector[key].values.tolist()
+
+
 
 
             self.log_init = True
@@ -266,8 +268,9 @@ class manual_tracker():
                     if self.log_init  == False:
                         self.cell_object_num = 0
                         self.spheroid_object_num = 0
+                        self.t_start = 0
                     else:
-                        self.log_init  == False
+                        self.log_init  = False
 
                     while t_cap:
 
@@ -339,36 +342,53 @@ class manual_tracker():
                                     windowText = r"timestep {}, method {} \nt={}/{}, z={}/{}, v={}/{}".format(self.t_backup, self.round , self.t_start, self.metas["n_frames"], self.z_start, self.metas["n_levels"], self.k, self.metas["n_fields"])
                                     cv2.putText(self.img_moc, windowText,(150, 150), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 2)
                                 elif kk == 119: #Move z up w
-                                    self.z_start += 1
-                                    if self.z_start == self.metas["n_levels"]:
-                                        self.z_start -=1
+                                    if (self.round == "protrusion") & (self.n_clicks != 0):
+                                        print("finish clicking!")
+                                        pass
+                                    else:
+                                        self.z_start += 1
+                                        if self.z_start == self.metas["n_levels"]:
+                                            self.z_start -=1
 
-                                    self.img = self.fetch_image(images, self.t_start, self.z_start, k)
-                                    self.img_moc = self.img.copy()
-                                    self.re_show()
+                                        self.img = self.fetch_image(images, self.t_start, self.z_start, k)
+                                        self.img_moc = self.img.copy()
+                                        self.re_show()
 
                                 elif kk == 115: #Move z down s
-                                    self.z_start -= 1
-                                    if self.z_start == -1:
-                                        self.z_start +=1
 
-                                    self.img = self.fetch_image(images, self.t_start, self.z_start, k)
-                                    self.img_moc = self.img.copy()
-                                    self.re_show()
+                                    if (self.round == "protrusion") & (self.n_clicks != 0):
+                                        print("finish clicking!")
+                                        pass
+                                    else:
+                                        self.z_start -= 1
+                                        if self.z_start == -1:
+                                            self.z_start +=1
+
+                                        self.img = self.fetch_image(images, self.t_start, self.z_start, k)
+                                        self.img_moc = self.img.copy()
+                                        self.re_show()
 
                                 elif kk == 100: #Move up d
-                                    self.t_start += 1
-                                    if self.t_start == self.metas["n_frames"]:
-                                        self.t_start -=1
+                                    if (self.round == "protrusion") & (self.n_clicks != 0):
+                                        print("finish clicking!")
+                                        pass
+                                    else:
+                                        self.t_start += 1
+                                        if self.t_start == self.metas["n_frames"]:
+                                            self.t_start -=1
 
-                                    self.img = self.fetch_image(images, self.t_start, self.z_start, k)
-                                    self.img_moc = self.img.copy()
-                                    self.re_show()
+                                        self.img = self.fetch_image(images, self.t_start, self.z_start, k)
+                                        self.img_moc = self.img.copy()
+                                        self.re_show()
 
                                 elif kk == 97: #Move down a
-                                    self.t_start -= 1
-                                    if self.t_start == -1:
-                                        self.t_start +=1
+                                    if (self.round == "protrusion") & (self.n_clicks != 0):
+                                        print("finish clicking!")
+                                        pass
+                                    else:
+                                        self.t_start -= 1
+                                        if self.t_start == -1:
+                                            self.t_start +=1
 
                                     self.img = self.fetch_image(images, self.t_start, self.z_start, k)
                                     self.img_moc = self.img.copy()
@@ -386,6 +406,7 @@ class manual_tracker():
 
                             self.n_clicks = 0
                             self.pts = []
+
                             self.object_num = 0
                             self.pts_dict = {}
 

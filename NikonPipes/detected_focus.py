@@ -79,7 +79,7 @@ class focus_detector():
 
     def find_paths(self):
 
-        root_path = "E:/instru_projects/TimeLapses/u-wells/*"
+        root_path = "D:/instru_projects/TimeLapses/u-wells/*"
         target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
         #root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
@@ -271,8 +271,8 @@ class focus_detector():
                     self.focus_dict[k] = max_indices
                     #print(self.focus_dict)
 
-                    #with open(os.path.join(results, 'focus_indixes.pkl'), 'wb') as f:
-                    #    pickle.dump(self.focus_dict, f)
+                    with open(os.path.join(results, 'focus_indixes.pkl'), 'wb') as f:
+                        pickle.dump(self.focus_dict, f)
 
                 
         return 1
