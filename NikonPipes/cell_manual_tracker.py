@@ -16,17 +16,20 @@ class manual_tracker():
         self.scaled_size = 1024
         self.converter = 2304/self.scaled_size
 
+        self.find_flag = False
+        self.log_init = False
+
 
         with open('./dataStore/metalib.json', 'r') as f:
             self.own_meta = json.load(f)   
 
     def find_path(self):
         
-        root_path = "D:/instru_projects/TimeLapses/u-wells/*"
+        root_path = "E:/instru_projects/TimeLapses/u-wells/*"
         target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
-        root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
-        target_paths = target_paths + glob.glob(os.path.join(root_path_2, "*.nd2"))
+        #root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
+        #target_paths = target_paths + glob.glob(os.path.join(root_path_2, "*.nd2"))
 
         for i in target_paths:
             print(i)
@@ -40,13 +43,32 @@ class manual_tracker():
             return -1
         else:
             log_file = np.load(os.path.join(self.results, "log_single.npy"))
-            self.n_start = log_file[0]; self.t_start = log_file[1]
+            self.n_start = log_file[0]; self.t_start = log_file[1]+1
+
+            df_track = pd.read_csv(os.path.join(self.results, "data_track.csv"))
+            df_vector = pd.read_csv(os.path.join(self.results, "data_vector.csv"))
+
+            self.cell_object_num = np.max(df_track["cell_id"].values)
+            self.spheroid_object_num = np.max(df_vector["cell_id"].values)
+
+            self.saver.data_dict = {}
+            self.saver.data_dict_ = {}
+
+            for count,key in enumerate(df_track.columns):
+                self.saver.data_dict_[key] = df_track[key].values.tolist()
+
+            for count,key in enumerate(df_vector.columns):
+                self.saver.data_dict[key] = df_vector[key].values.tolist()
+
+
+            self.log_init = True
+
             return 1
         
     def save_logged(self):
         info = np.array((self.k, self.t_start))
-
         np.save( os.path.join(self.results,"log_single.npy"), info)
+
         
     def fetch_image(self, images, j, z, k):
         
@@ -80,21 +102,28 @@ class manual_tracker():
     def click_event(self, event, x, y, flags, params):
 
         if event == cv2.EVENT_LBUTTONDOWN:
+
             if (self.n_clicks == 0) & (self.round == "cells"):
                 self.pts_dict[self.cell_object_num] = []
+
             elif (self.n_clicks == 0) & (self.round == "protrusion"):
+
                 ret = self.check_if_close(x*self.converter,y*self.converter)
-                if ret != -1:
+                if( ret != -1) & (self.find_flag == True):
+                     print("found match", ret)
                      self.spheroid_object_num = ret
-                else:
-                    for probe in np.arange(1,1000):
-                        if probe not in self.pts_dict.keys():
+                     self.find_flag = False
+                     return 1
+                elif (ret == -1) & (self.find_flag == True):
+                    for probe in np.arange(0,1000):
+                        if (probe not in self.saver.data_dict["cell_id"]) & (probe not in self.pts_dict.keys()):
                             self.spheroid_object_num = probe
                             break
 
                 self.pts_dict[self.spheroid_object_num] = []
 
-            self.n_clicks += 1 
+            self.n_clicks += 1                      
+            
             self.pts.append([int(x*self.converter),int(y*self.converter), self.z_start, self.t_start, self.k])
 
             if (self.n_clicks == 1) & (self.round == "protrusion"):
@@ -108,6 +137,7 @@ class manual_tracker():
                 self.pts_dict[self.spheroid_object_num].append(self.pts)
                 self.pts = []
                 self.n_clicks = 0
+                self.find_flag = True
             elif (self.n_clicks == 1) & (self.round == "cells"):
                 self.img_moc = cv2.circle(self.img_moc, self.pts[0][:2], radius=5, color=(0, 255, 255), thickness=-1)
                 self.pts_dict[self.cell_object_num].append(self.pts)
@@ -115,7 +145,9 @@ class manual_tracker():
                 self.cell_object_num += 1
                 self.n_clicks = 0
 
-            print(self.spheroid_object_num, self.cell_object_num,self.n_clicks, x, y)
+            print("mode", self.round,"Spheroid num", self.spheroid_object_num, "cell_ num", self.cell_object_num, "n clicks",self.n_clicks, "coords", x, y, "time", self.t_backup, "loc", self.k, "z:", self.z_start )
+            return 1
+
         elif event == cv2.EVENT_RBUTTONDOWN:
 
 
@@ -188,6 +220,7 @@ class manual_tracker():
         cv2.setMouseCallback('window', self.click_event)
 
         for video_path in tqdm.tqdm(self.target_paths, total=len(self.target_paths)):
+
             self.n_start = 0
             self.t_start = 0
             self.z_start = 0
@@ -217,6 +250,7 @@ class manual_tracker():
                     self.FL_flag = False
 
                 self.idx_bf = 0
+
                 if self.FL_flag:
                     for d in range(len(self.metas["channels"])):
                         if self.metas["channels"][d] == 'BF':
@@ -229,10 +263,11 @@ class manual_tracker():
                     self.k = k
                     t_cap = True
 
-                    self.cell_object_num = 0
-                    self.spheroid_object_num = 0
-                    self.prev_prot = self.saver.return_timestep(self.k)
-
+                    if self.log_init  == False:
+                        self.cell_object_num = 0
+                        self.spheroid_object_num = 0
+                    else:
+                        self.log_init  == False
 
                     while t_cap:
 
@@ -244,6 +279,10 @@ class manual_tracker():
                             self.pts = []
                             self.object_num = 0
                             self.pts_dict = {}
+
+                            if self.round == "protrusion":
+                                self.prev_prot = self.saver.return_timestep(self.k, self.t_start-1)
+                                self.draw_circles()
 
                             # put coordinates as text on the image
                             self.img = self.fetch_image(images, self.t_start, self.z_start, k)
@@ -270,7 +309,9 @@ class manual_tracker():
                                 elif kk == 113: #Exit q
 
                                     choosing = False
+                                    self.t_start = self.t_backup
                                     print("exisiting methods")
+
                                     if (self.round == "cells") & (len(self.pts_dict.keys()) > 0):
                                         for current_key in self.pts_dict.keys():
                                             row = self.pts_dict[current_key][0]
@@ -278,16 +319,16 @@ class manual_tracker():
                                             #print(int(current_key), row[0][3], row[0][0], row[0][1], row[0][2],row[0][4])
                                             self.saver.update_cell(int(current_key), row[0][3], row[0][0], row[0][1], row[0][2],row[0][4])
                                     elif(self.round == "protrusion") & (len(self.pts_dict.keys()) > 0):
+                                            
                                         for current_key in self.pts_dict.keys():
                                             row = self.pts_dict[current_key][0]
                                             #print(row)
                                             #print([[row[0][0], row[0][1]],[row[1][0], row[1][1]]], int(current_key), row[0][3], row[0][2],row[0][4], [[row[2][0], row[2][1]],[row[3][0], row[3][1]]])
                                             self.saver.update_vector([[row[0][0], row[0][1]],[row[1][0], row[1][1]]], int(current_key), row[0][3], row[0][2],row[0][4], [[row[2][0], row[2][1]],[row[3][0], row[3][1]]])
 
-                                        self.prev_prot = self.saver.return_timestep(self.k)
-
 
                                 elif kk == 101: #clear e
+                                    self.t_start = self.t_backup
                                     self.n_clicks = 0
                                     self.pts = []
                                     self.spheroid_object_num = 0
@@ -332,9 +373,14 @@ class manual_tracker():
                                     self.img = self.fetch_image(images, self.t_start, self.z_start, k)
                                     self.img_moc = self.img.copy()
                                     self.re_show()
-                                elif kk == 114:
-                                    choosing = False
-                                    t_cap = False
+
+                                elif kk == 114: #q to close
+                                    if (self.round == "protrusion") & (self.n_clicks != 0):
+                                        print("finish clicking!")
+                                        pass
+                                    else:
+                                        choosing = False
+                                        t_cap = False
                                 else:
                                     print("incorrect key", kk)
 
@@ -344,7 +390,7 @@ class manual_tracker():
                             self.pts_dict = {}
 
                         self.save_logged()
-                        
+
                         if self.t_start == self.metas["n_frames"]:
                             t_cap = False
                         else:

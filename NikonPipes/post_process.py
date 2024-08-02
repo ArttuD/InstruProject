@@ -86,7 +86,7 @@ class PostProcess():
 
     def find_paths(self):
 
-        root_path = "G:/instru_projects/TimeLapses/u-wells/*"
+        root_path = "H:/instru_projects/TimeLapses/u-wells/*"
         target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
 
         #root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
@@ -165,7 +165,7 @@ class PostProcess():
 
     def pipe(self):
 
-        for video_path in tqdm.tqdm(self.target_paths, total=len(self.target_paths)):
+        for video_path in tqdm.tqdm(self.target_paths[3:], total=len(self.target_paths[3:])):
 
             print(video_path)
 
