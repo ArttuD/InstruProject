@@ -101,6 +101,10 @@ for key in total_dict_.keys() :
     df_collecting.append(pd.concat(df_temp,ignore_index=True)) #lists of dfs are contantenated and appended to df_collecting, thedf_temp is re-initialized
 
 df_all=pd.concat(df_collecting, ignore_index=True)
+
+#%%
+df_all['incubation_time'] = df_all['incubation_time'].astype(int)
+print(df_all)
 #%%
 print(df_all.shape)
 
@@ -109,4 +113,10 @@ print(df_all)
 # %%
 saving_path= 'C:/Users/srboval1/OneDrive - Aalto University/Instru/Datafiles'
 df_all.to_csv(saving_path+'/contours_exp2.csv')  
+# %%
+print(df_all['incubation_time'].min())
+
+# %%
+
+
 # %%
