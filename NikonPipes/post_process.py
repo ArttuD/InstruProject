@@ -11,6 +11,8 @@ import json
 import skimage
 from tools.func import *
 
+import argparse
+
 
 class Change_Level():
     
@@ -66,22 +68,42 @@ class Change_Level():
 
 class PostProcess():
 
-    def __init__(self) -> None:
+    def __init__(self, args) -> None:
         
-
-        self.target_paths = self.find_paths()
+        if args.path:
+            self.target_paths = [args.path]
+        else:
+            self.target_paths = self.find_paths()
 
         with open('./dataStore/metalib.json', 'r') as f:
             self.own_meta = json.load(f)   
-
+        
+        self.img_size = 2304
         self.scaled_size = 1020
+        self.scaler = self.img_size/self.scaled_size
 
-        self.scaler = 2304/self.scaled_size
+        self.max_zoom = 5
+        self.min_zoom = 1
+        self.zoom = 1
+        self.x_offset = 0
+        self.y_offset = 0
+        self.edge = self.scaled_size
+        self.zoomed = False
 
         self.data_dict = None
         self.current_key = None
 
         self.right_clicked = False
+
+    def reset_zoom(self):
+
+        self.scaler = self.img_size/self.scaled_size
+        self.zoom = 1
+        self.x_offset = 0
+        self.y_offset = 0
+        self.edge = self.scaled_size
+        self.zoomed = False
+
 
 
     def find_paths(self):
@@ -105,9 +127,46 @@ class PostProcess():
     
     def click_event(self, event, x, y, flags, params):
 
-        if self.right_clicked:
+        if (event == cv2.EVENT_MOUSEWHEEL) & (self.zoomed == False):
+            x = int((x*self.scaler))
+            y = int((y*self.scaler))
 
-            self.pts.append([int(x*self.scaler),int(y*self.scaler)])
+            if flags > 0:
+                self.zoom *= 1.1
+                self.zoom = min(self.zoom, self.max_zoom)
+            else:
+                self.zoom /= 1.1
+                self.zoom = max(self.zoom, self.min_zoom)
+            
+            self.img_ = self.img_bf.copy()
+
+            # Calculate zoomed-in image size
+            self.edge = round(self.img_size / (self.zoom))
+
+            # Calculate offset
+            self.x_offset = round(x - (x / self.zoom))
+            self.y_offset = round(y - (y / self.zoom))
+
+            self.img_ = cv2.rectangle(self.img_, [self.x_offset, self.y_offset], [self.x_offset + self.edge, self.y_offset + self.edge], (0, 255, 0), 4)
+
+            # Crop image
+            #self.img_ = self.img_[
+            #    x_offset : x_offset + edge,
+            #    y_offset  : y_offset  + edge,
+            #]
+            #self.img_  = cv2.resize(self.img_bf.copy(), (self.scaled_size,self.scaled_size))
+            #cv2.imshow('window', self.img_)
+            #return 1
+
+        elif event == cv2.EVENT_MBUTTONUP:
+            self.scaler = (self.edge/(self.scaled_size))
+            self.img_ = self.img_bf.copy()
+            self.zoomed = True
+
+        elif self.right_clicked:
+
+            self.pts.append([int((x*self.scaler+self.x_offset)),int((y*self.scaler+self.y_offset))])
+
             self.img_ = self.img_bf.copy()
             pts_ = np.array(self.pts).reshape((-1, 1, 2))
 
@@ -125,11 +184,11 @@ class PostProcess():
                 self.img_ = cv2.polylines(self.img_, [pts_], 
                 True, (255, 0, 255), 2)
 
-
         elif event == cv2.EVENT_LBUTTONDOWN:
             #print(f'({x},{y})')
 
-            self.pts.append([int(x*self.scaler),int(y*self.scaler)])
+            self.pts.append([int((x*self.scaler+self.x_offset)),int((y*self.scaler+self.y_offset))])
+
             self.right_clicked = True
             self.img_ = cv2.circle(self.img_, self.pts[0], radius=15, color=(0, 255, 255), thickness=-1)
 
@@ -138,8 +197,20 @@ class PostProcess():
 
             self.img_ = self.img_bf.copy()
             self.pts = []
-                
-        cv2.imshow("window", cv2.resize(self.img_, (self.scaled_size,self.scaled_size)) )
+        
+
+        if self.zoomed:
+            self.img_show = self.img_[
+                self.y_offset : self.y_offset + self.edge,
+                self.x_offset  : self.x_offset  + self.edge,
+            ]
+            self.img_show = cv2.resize(self.img_show, (self.scaled_size,self.scaled_size))
+        else:
+            self.img_show = cv2.resize(self.img_, (self.scaled_size,self.scaled_size))
+
+
+        cv2.imshow("window",  self.img_show)
+
 
     def video_saver(self, imgs, mask, big_idx, loc):
         
@@ -165,7 +236,7 @@ class PostProcess():
 
     def pipe(self):
 
-        for video_path in tqdm.tqdm(self.target_paths[3:], total=len(self.target_paths[3:])):
+        for video_path in tqdm.tqdm(self.target_paths, total=len(self.target_paths)):
 
             print(video_path)
 
@@ -180,6 +251,7 @@ class PostProcess():
             self.coords = self.own_meta[day]["coords"]
 
             focus_path = glob.glob(os.path.join(results, "corrected_focus_indixes.pkl")) #*_indixes.pkl
+
             if len(focus_path) == 0:
                 print("No focus correction!")
                 focus_path = glob.glob(os.path.join(results, "focus_indixes.pkl"))
@@ -187,7 +259,7 @@ class PostProcess():
             with open(focus_path[0], 'rb') as f:
                 self.focus_dict = pickle.load(f)   
 
-            pickel_path = os.path.join(results,"{}_corrected_detections.pkl".format(video_name))
+            pickel_path = glob.glob(os.path.join(results,"{}_corrected_detections.pkl".format(video_name)))
 
             if len(pickel_path) == 0:
                 print("No pkl corrected file!")
@@ -338,8 +410,7 @@ class PostProcess():
                             break
                     
                     self.video_saver(self.img_list_video, self.data_dict[self.current_key]['mask'], self.data_dict[self.current_key]['big_idx'], k)
-
-                    #print("Saving dicts")
+                    print("Saving dicts")
                     with open(os.path.join(results,'{}_corrected_detections.pkl'.format(os.path.split(video_path)[1][:-4])), 'wb') as f:
                         print("saving detections")
                         pickle.dump(self.data_dict, f)
@@ -353,9 +424,10 @@ class PostProcess():
         cv2.namedWindow('window')
         # bind the callback function to window
         cv2.setMouseCallback('window', self.click_event)
+
         start_idx = 0
         for id_repair in np.arange(metas["n_frames"]):
-                
+            
             if self.response_vals[id_repair] == 0:
                 continue
             
@@ -369,6 +441,7 @@ class PostProcess():
             #self.changed_countour = False
 
             while choosing:
+                self.reset_zoom()
                 try:
                     img_bf = images.get_frame_2D(c=idx_bf, t=id_repair, z=start_idx, x=0, y=0, v=loc)
                 except:
@@ -446,8 +519,16 @@ class PostProcess():
 
 
 if __name__ == "__main__":
+        
+    parser = argparse.ArgumentParser(
+        description="""Download results in the folder and ouputs results
+                    """)
+    parser.add_argument('--path','-p',required=False,default= None, help='Path to folder. eg. C:/data/imgs')
 
-        process = PostProcess()
-        success = process.pipe()
-        print("Done")
-        exit()
+    #Save arguments
+    args = parser.parse_known_args()[0]
+
+    process = PostProcess(args)
+    success = process.pipe()
+    print("Done")
+    exit()
