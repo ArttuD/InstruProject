@@ -5,14 +5,17 @@ import json
 from tools.func import *
 from tools.saver import Cells
 from nd2reader import ND2Reader
-
+import argparse
 
 class manual_tracker():
 
-    def __init__(self) -> None:
+    def __init__(self, arg) -> None:
 
-
-        self.target_paths = self.find_path()
+        if args.path:
+            self.target_paths = [args.path]
+        else:
+            self.target_paths = self.find_path()
+        
         self.scaled_size = 1024
         self.converter = 2304/self.scaled_size
 
@@ -25,11 +28,12 @@ class manual_tracker():
 
     def find_path(self):
         
-        root_path = "E:/instru_projects/TimeLapses/u-wells/*"
-        target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
-
-        #root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
-        #target_paths = target_paths + glob.glob(os.path.join(root_path_2, "*.nd2"))
+            
+        target_paths = glob.glob("D:/instru_projects/TimeLapses/u-wells/*/*.nd2") 
+        target_paths += glob.glob("F:/instru_projects/TimeLapses/u-wells/*/*.nd2")
+        target_paths += glob.glob("G:/instru_projects/TimeLapses/u-wells/*/*.nd2") 
+        target_paths += glob.glob("E:/instru_projects/TimeLapses/u-wells/*/*.nd2")
+        target_paths += glob.glob("H:/instru_projects/TimeLapses/u-wells/*/*.nd2")
 
         for i in target_paths:
             print(i)
@@ -197,8 +201,8 @@ class manual_tracker():
 
         for x,y,id in zip(self.prev_prot["x"].values, self.prev_prot["y"].values, self.prev_prot["cell_id"].values):
             windowText = "id_{}".format(id)
-            cv2.putText(self.img_moc, windowText,(x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
-            self.img_moc = cv2.circle(self.img_moc, (x,y), radius= 20, color=(0, 255, 0), thickness=4)
+            cv2.putText(self.img_moc, windowText,(x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
+            self.img_moc = cv2.circle(self.img_moc, (x,y), radius= 15, color=(0, 255, 0), thickness=2)
 
     def check_if_close(self, x_clicked, y_clicked):
         min_distance = 1000
@@ -223,6 +227,7 @@ class manual_tracker():
 
         for video_path in tqdm.tqdm(self.target_paths, total=len(self.target_paths)):
 
+            print(video_path)
             self.n_start = 0
             self.t_start = 0
             self.z_start = 0
@@ -238,6 +243,15 @@ class manual_tracker():
 
             parts = os.path.split(video_path)[-1].split("_")
             day = str(parts[0])        
+
+            self.focus_path = glob.glob(os.path.join(self.results, "corrected_focus_indixes.pkl")) #*_indixes.pkl
+
+            if len(self.focus_path) == 0:
+                print("No focus correction!")
+                self.focus_path = glob.glob(os.path.join(self.results, "focus_indixes.pkl"))
+            
+            with open(self.focus_path[0], 'rb') as f:
+                self.focus_dict = pickle.load(f)  
 
             if day not in self.own_meta.keys():
                 print(day, "Not in keys, skipping")
@@ -283,20 +297,35 @@ class manual_tracker():
                             self.object_num = 0
                             self.pts_dict = {}
 
-                            if self.round == "protrusion":
-                                self.prev_prot = self.saver.return_timestep(self.k, self.t_start-1)
-                                self.draw_circles()
+                            print(k, self.t_start)
+                            try:
+                                idx = int(self.focus_dict[k][self.t_start])
+                            except:
+                                print("Issues with focus")
+                                choosing = False
+                                t_cap = False
 
+                            if idx == -1:
+                                choosing = False
+                                t_cap = False
+
+                            self.z_start = idx
                             # put coordinates as text on the image
                             self.img = self.fetch_image(images, self.t_start, self.z_start, k)
 
                             self.t_backup = self.t_start
 
                             self.img_moc = self.img.copy()
+
+                            if self.round == "protrusion":
+                                self.prev_prot = self.saver.return_timestep(self.k, self.t_start-1)
+                                self.draw_circles()
+
                             windowText = r'timestep {}, method {} t={}/{}, z={}/{}, v={}/{}'.format(self.t_backup, self.round , self.t_start, self.metas["n_frames"], self.z_start, self.metas["n_levels"], self.k, self.metas["n_fields"])
                             cv2.putText(self.img_moc, windowText,(150, 150), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 2)
 
                             while choosing:
+
 
 
                                 cv2.imshow("window", cv2.resize(self.img_moc, (self.scaled_size,self.scaled_size)) )
@@ -412,7 +441,7 @@ class manual_tracker():
 
                         self.save_logged()
 
-                        if self.t_start == self.metas["n_frames"]:
+                        if self.t_start == self.metas["n_frames"]-1:
                             t_cap = False
                         else:
                             self.t_start += 1
@@ -424,5 +453,13 @@ class manual_tracker():
 
 if __name__ == "__main__":
 
-    tracker = manual_tracker()
+    parser = argparse.ArgumentParser(
+        description="""Download results in the folder and ouputs results
+                    """)
+    parser.add_argument('--path','-p',required=False,default= None, help='Path to folder. eg. C:/data/imgs')
+
+    #Save arguments
+    args = parser.parse_known_args()[0]
+
+    tracker = manual_tracker(args)
     tracker.process()

@@ -107,18 +107,12 @@ class PostProcess():
 
 
     def find_paths(self):
-
-        root_path = "H:/instru_projects/TimeLapses/u-wells/*"
-        target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
-
-        #root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
-        #target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
-#
-        #root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
-        #target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
-#
-        #root_path_2 = "G:/instru_projects/TimeLapses/u-wells/*"
-        #target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
+    
+        target_paths = glob.glob("D:/instru_projects/TimeLapses/u-wells/*/*.nd2") 
+        target_paths += glob.glob("F:/instru_projects/TimeLapses/u-wells/*/*.nd2")
+        target_paths += glob.glob("G:/instru_projects/TimeLapses/u-wells/*/*.nd2") 
+        target_paths += glob.glob("E:/instru_projects/TimeLapses/u-wells/*/*.nd2")
+        target_paths += glob.glob("H:/instru_projects/TimeLapses/u-wells/*/*.nd2")
 
         for i in target_paths:
             print(i)
@@ -177,7 +171,7 @@ class PostProcess():
 
             distance =  np.sqrt((self.pts[-1][0] - self.pts[0][0])**2 + (self.pts[-1][1] - self.pts[0][1])**2)
 
-            if (distance< 30) & (len(self.pts) > 30): 
+            if (distance< 20) & (len(self.pts) > 50): 
 
                 self.right_clicked = False
 
