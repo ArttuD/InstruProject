@@ -18,6 +18,8 @@ import pandas as pd
 
 from tools.func import *
 
+import argparse
+
 def mousePoints(event,x,y,flags,param):
     #Crop image
     global refPt
@@ -44,14 +46,21 @@ skip_existing = False
 map_coord = True
 parse_flag = True
 
-root_path = "D:/instru_projects/TimeLapses/u-wells/*"
-target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
+parser = argparse.ArgumentParser(
+    description="""Download results in the folder and ouputs results
+                """)
+parser.add_argument('--path','-p',required=False,default= None, help='Path to folder. eg. C:/data/imgs')
+#Save arguments
+args = parser.parse_known_args()[0]
 
-#root_path_2 = "D:/instru_projects/TimeLapses/u-wells/*"
-#target_paths = target_paths + glob.glob(os.path.join(root_path_2, "*.nd2"))
-
-#target_paths_FL = glob.glob(os.path.join(root_path, "*mCherry.nd2"))
-#target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2, "*mCherry.nd2"))
+if args.path:
+    target_paths = [args.path]
+else:
+    target_paths = glob.glob("D:/instru_projects/TimeLapses/u-wells/*/*.nd2") 
+    target_paths += glob.glob("F:/instru_projects/TimeLapses/u-wells/*/*.nd2")
+    target_paths += glob.glob("G:/instru_projects/TimeLapses/u-wells/*/*.nd2") 
+    target_paths += glob.glob("E:/instru_projects/TimeLapses/u-wells/*/*.nd2")
+    target_paths += glob.glob("H:/instru_projects/TimeLapses/u-wells/*/*.nd2")
 
 
 with open('./dataStore/metalib.json', 'r') as f:

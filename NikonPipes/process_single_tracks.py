@@ -15,13 +15,13 @@ class track_main():
 
     def __init__(self, args):
 
-        if args:
+        if args.path:
             self.target_paths = [args.path]
         else:
             self.target_paths = self.find_paths()
 
         self.gen = args.gen
-        print(self.gen)
+
 
         self.tracker = TrackManager(min_count=5, max_count = 5, gating = 500)
         self.kk = None 
@@ -139,8 +139,8 @@ class track_main():
 
             if focus_idx == -1:
                 break
-
-
+            
+            print("tags", tags_)
             df_vector_sub = self.df_vector[(self.df_vector["location"] == self.loc) & (self.df_vector["time"] == tags_)]
             values = df_vector_sub[["x", "y", "x2", "y2"]].values
 
@@ -203,30 +203,35 @@ class track_main():
 
         df_ids = pd.read_csv("./dataStore/Exp_design_2.csv")
         save_path = os.path.join(self.results, "data_vector_results.csv")
-        print("Saving to location", save_path)
-
-
-        df_info = df_ids[(df_ids["day"] == int(self.day))]#.reset_index(drop=True) #& (df_ids["location"] == i)
 
         for label_info, sub_data in self.df_vector.groupby(["cell_id", "location"]):
 
             df_info = df_ids[(df_ids["day"] == int(self.day))& (df_ids["location"] == label_info[1]) ]#.reset_index(drop=True) #& (df_ids["location"] == i)
 
+            if df_info.shape[0] > 1:
+                print("multiple rows from info")
+                exit(0)
+                
             sub_data = sub_data.reset_index(drop = True)
             sub_data = sub_data.iloc[sub_data['lenght'].idxmax()]
+
+            if sub_data.to_frame().T.shape[0] > 1:
+                print("multiple rows from sub", sub_data.to_frame().T)
+                exit(0)
             
             sub_data["day"] = self.day
-            sub_data["ID"] = df_info["ID"]
+            sub_data["ID_running"] = df_info["ID_running"].values[0]
+            sub_data["time"] = int(sub_data["time"])*self.own_meta["dt"]/60**2+self.own_meta["incubation_time"]
             sub_data["cell_label"] = df_info['cell_label'].values[0]
             sub_data["well_id"] = df_info['well_id'].values[0]
             sub_data["measurement_id"] = df_info['measurement_id'].values[0]
             sub_data["matrix"] = df_info['matrix'].values[0]
 
             if len(self.df_tot_prot) != 0 :
-                self.df_tot_prot = pd.concat((self.df_tot_prot, sub_data))
+                self.df_tot_prot = pd.concat((self.df_tot_prot, sub_data.to_frame().T))
             else:
-                self.df_tot_prot = sub_data
-        
+                self.df_tot_prot = sub_data.to_frame().T
+
         self.df_tot_prot.to_csv(save_path, index = False)
 
 

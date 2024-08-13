@@ -9,6 +9,7 @@ import json
 import skimage
 from tools.func import *
 
+import argparse
 
 
 class Change_Level():
@@ -63,10 +64,13 @@ class Change_Level():
 
 class focus_detector():
 
-    def __init__(self) -> None:
-        
+    def __init__(self, args) -> None:
 
-        self.target_paths, self.target_paths_FL = self.find_paths()
+        if args.path:
+            self.target_paths = [args.path]
+        else:
+            self.target_paths = self.find_paths()
+
 
         with open('./dataStore/metalib.json', 'r') as f:
             self.own_meta = json.load(f)   
@@ -79,20 +83,16 @@ class focus_detector():
 
     def find_paths(self):
 
-        root_path = "D:/instru_projects/TimeLapses/u-wells/*"
-        target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
-
-        #root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
-        #target_paths = target_paths + glob.glob(os.path.join(root_path_2, "*.nd2"))
-
-        target_paths_FL = glob.glob(os.path.join(root_path, "*mCherry.nd2"))
-
-        #target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2, "*.nd2"))
+        target_paths = glob.glob("D:/instru_projects/TimeLapses/u-wells/*/*.nd2") 
+        target_paths += glob.glob("F:/instru_projects/TimeLapses/u-wells/*/*.nd2")
+        target_paths += glob.glob("G:/instru_projects/TimeLapses/u-wells/*/*.nd2") 
+        target_paths += glob.glob("E:/instru_projects/TimeLapses/u-wells/*/*.nd2")
+        target_paths += glob.glob("H:/instru_projects/TimeLapses/u-wells/*/*.nd2")
 
         for i in target_paths:
             print(i)
 
-        return target_paths, target_paths_FL
+        return target_paths
 
 
     def process_pipe(self):
@@ -280,7 +280,15 @@ class focus_detector():
 
 if __name__ == "__main__":
 
-        focuser = focus_detector()
-        success = focuser.process_pipe()
-        print("Done")
-        exit()
+    parser = argparse.ArgumentParser(
+        description="""Download results in the folder and ouputs results
+                    """)
+    parser.add_argument('--path','-p',required=False,default= None, help='Path to folder. eg. C:/data/imgs')
+
+    #Save arguments
+    args = parser.parse_known_args()[0]
+
+    focuser = focus_detector(args)
+    success = focuser.process_pipe()
+    print("Done")
+    exit()

@@ -16,6 +16,7 @@ from skimage.morphology import closing, dilation
 from skimage.morphology import disk
 
 from tools.func import *
+import argparse
 
 
 def process_FL(img_bf, img_fl, x_start, y_start, otsu_flag):
@@ -117,24 +118,28 @@ def process_BF(img_bf, x_start, y_start, local_flag):
     return out_vis, x, y, r, prev, idx_big, contours, x_start, y_start
 
 
-otsu_list = [[1,2,3]]
+parser = argparse.ArgumentParser(
+    description="""Download results in the folder and ouputs results
+                """)
+parser.add_argument('--path','-p',required=False,default= None, help='Path to folder. eg. C:/data/imgs')
+parser.add_argument('--blur','-b',required=False,default= [[]], help='blurred images')
+
+#Save arguments
+args = parser.parse_known_args()[0]
+
+
+otsu_list = args.blur
 otsu_list_counter = 0
 otsu_flag = False
 
-root_path = "D:/instru_projects/TimeLapses/u-wells/*"
-target_paths = glob.glob(os.path.join(root_path, "*.nd2"))
-
-#root_path_2 = "E:/instru_projects/TimeLapses/u-wells/*"
-#target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
-#
-#root_path_2 = "F:/instru_projects/TimeLapses/u-wells/*"
-#target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
-#
-#root_path_2 = "G:/instru_projects/TimeLapses/u-wells/*"
-#target_paths += glob.glob(os.path.join(root_path_2, "*.nd2"))
-
-#target_paths_FL = glob.glob(os.path.join(root_path, "*mCherry.nd2"))
-#target_paths_FL = target_paths_FL + glob.glob(os.path.join(root_path_2, "*mCherry.nd2"))
+if args.path:
+    target_paths = [args.path]
+else:
+    target_paths = glob.glob("D:/instru_projects/TimeLapses/u-wells/*/*.nd2") 
+    target_paths += glob.glob("F:/instru_projects/TimeLapses/u-wells/*/*.nd2")
+    target_paths += glob.glob("G:/instru_projects/TimeLapses/u-wells/*/*.nd2") 
+    target_paths += glob.glob("E:/instru_projects/TimeLapses/u-wells/*/*.nd2")
+    target_paths += glob.glob("H:/instru_projects/TimeLapses/u-wells/*/*.nd2")
 
 ignore_paths = []
 for i in range(len(target_paths)):
