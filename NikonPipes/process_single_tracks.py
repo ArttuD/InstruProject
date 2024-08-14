@@ -208,9 +208,9 @@ class track_main():
 
             df_info = df_ids[(df_ids["day"] == int(self.day))& (df_ids["location"] == label_info[1]) ]#.reset_index(drop=True) #& (df_ids["location"] == i)
 
-            if df_info.shape[0] > 1:
-                print("multiple rows from info")
-                exit(0)
+            if df_info.shape[0] == 0:
+                print("did not find day, loc", int(self.day), self.loc)
+                continue
                 
             sub_data = sub_data.reset_index(drop = True)
             sub_data = sub_data.iloc[sub_data['lenght'].idxmax()]
@@ -247,6 +247,11 @@ class track_main():
         for i in np.arange(len(self.tracker.trackers)):
 
             df_info = df_ids[(df_ids["day"] == int(self.day)) & (df_ids["location"] == self.loc)]#.reset_index(drop=True) #& (df_ids["location"] == i)
+
+            if df_info.shape[0] == 0:
+                print("did not find day, loc", int(self.day), self.loc)
+                continue
+
             #print(df_info)
             df = pd.DataFrame() #data=None, columns=["day", "location", "time", "x", "y", "z", "location"]
 
