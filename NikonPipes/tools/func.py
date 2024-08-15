@@ -38,6 +38,34 @@ import re
 ##Functions
 ####
 
+def update_ignore():
+    print("updating ignroe and doubles")
+
+    path_meta = "./dataStore/metalib.json"
+    with open(path_meta, "r") as f:
+        own_meta = json.load(f)
+
+    path = "./dataStore/ignore.json"
+    with open(path, "r") as f:
+        datas = json.load(f)
+
+    try:
+        for count, ckey in enumerate(datas.keys()):
+
+            own_meta[ckey]["ignore"] = (np.array(datas[ckey]["ignore"])-1).tolist()
+            own_meta[ckey]["multi"] = (np.array(datas[ckey]["multi"])-1).tolist()
+    except:
+        print("Update failed", ckey)
+        return -1
+
+
+    with open('./dataStore/metalib.json', 'w', encoding='utf-8') as f:
+        json.dump(own_meta, f, ensure_ascii=False, indent=4)
+
+    print("update successful")
+
+    return 1
+
 
 def parse_raw_dict(day, video_path, own_meta):
 
@@ -187,17 +215,27 @@ def load_metadata(images):
     meta_dict = {}
      # number of locations start 1
 
+    try:
+        meta_dict["n_fields"] = images.metadata['fields_of_view'].stop
+    except:
+        meta_dict["n_fields"] = images.metadata['fields_of_view'][-1]
 
-    meta_dict["n_fields"] = images.metadata['fields_of_view'].stop
     #number of timeseteps
     meta_dict["n_frames"] = images.metadata['num_frames']
 
     
     #meta_dict["z_level"] = (np.max(images.metadata['z_coordinates'])-np.min(images.metadata['z_coordinates']))
-
-    meta_dict["z_level"] =  float(images.metadata["z_coordinates"][:images.metadata["z_levels"].stop][-1]-images.metadata["z_coordinates"][:images.metadata["z_levels"].stop][0])/float(images.metadata["z_levels"].stop)
+    try:
+        meta_dict["z_level"] =  float(images.metadata["z_coordinates"][:images.metadata["z_levels"].stop][-1]-images.metadata["z_coordinates"][:images.metadata["z_levels"].stop][0])/float(images.metadata["z_levels"].stop)
+    except:
+        meta_dict["z_level"] =  float(images.metadata["z_coordinates"][:images.metadata["z_levels"][-1]][-1]-images.metadata["z_coordinates"][:images.metadata["z_levels"][-1]][0])/float(images.metadata["z_levels"][-1])
+    
     #number of levels starting from 1
-    meta_dict["n_levels"] = images.metadata['z_levels'].stop
+    try:
+        meta_dict["n_levels"] = images.metadata['z_levels'].stop
+    except:
+        meta_dict["n_levels"] = images.metadata['z_levels'][-1]
+
     meta_dict["z_step"] = meta_dict["z_level"] /meta_dict["n_levels"]
 
     #list of channels
