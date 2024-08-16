@@ -8,7 +8,8 @@ import cv2
 import pickle
 from nd2reader import ND2Reader
 
-from tools.MTT.track_manager import TrackManager
+#from tools.MTT.track_manager import TrackManager
+from tools.cMTT.track_manager import TrackManager
 from tools.func import *
 
 class track_main():
@@ -23,7 +24,8 @@ class track_main():
         self.gen = args.gen
 
 
-        self.tracker = TrackManager(min_count=5, max_count = 5, gating = 500)
+        #self.tracker = TrackManager(min_count=5, max_count = 5, gating = 500)
+        self.tracker  = TrackManager(min_count=5,max_count=5,gating=500)
         self.kk = None 
         #self.df_tot = pd.DataFrame(data=None, columns=["day", "time", "x", "y", "z", "ID","cell_label","well_id","measurement_id","matrix"]) #location
         self.df_tot_single = pd.DataFrame()

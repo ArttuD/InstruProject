@@ -286,8 +286,11 @@ class PostProcess():
                     idx_bf = 0
 
 
-
                 for k in range(metas["n_fields"]):
+
+                    if (k in self.own_meta[day]["ignore"]) | (k in self.own_meta[day]["multi"]):
+                        print("skipping ignored")
+                        continue
 
                     if k < len(self.own_meta[day]["cell"]):
                         self.line_name = self.own_meta[day]["cell"][k]
@@ -455,12 +458,17 @@ class PostProcess():
 
                 # add wait key. window waits until user presses a key
                 kk = cv2.waitKey(0)
+                
                 # and finally destroy/close all open windows
                 if kk == 113: #Exit 
                     choosing = False
                 elif kk == 101: #E end tracking
                     self.pts = []
                     start_idx = - 1
+                    choosing = False
+                elif kk == 103: #E end tracking
+                    self.pts = []
+                    start_idx = - 2
                     choosing = False
                 elif kk == 119: #Move up 
                     start_idx += 1

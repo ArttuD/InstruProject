@@ -129,6 +129,10 @@ class focus_detector():
                             idx_fl = d
 
                 for k in range(metas["n_fields"]): 
+
+                    if (k in self.own_meta[day]["ignore"]) | (k in self.own_meta[day]["multi"]):
+                        print("skipping ignored")
+                        continue
                     
                     if (day == "230418") & (k == 2):
                         pass 
@@ -145,7 +149,6 @@ class focus_detector():
                     fig, ax = plt.subplots(plot_ind,plot_ind,figsize=(plot_ind,plot_ind))
 
                     for j in range(metas["n_frames"]):
-
 
                         dets = np.zeros(metas["n_levels"])
 
