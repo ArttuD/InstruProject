@@ -40,16 +40,13 @@ def mousePoints(event,x,y,flags,param):
         cv2.rectangle(clone, refPt[0], (x, y), (0, 255, 0), 4)
         cv2.imshow("win", clone)
 
-
-
-skip_existing = False
-map_coord = True
-parse_flag = True
-
 parser = argparse.ArgumentParser(
     description="""Download results in the folder and ouputs results
                 """)
 parser.add_argument('--path','-p',required=False,default= None, help='Path to folder. eg. C:/data/imgs')
+parser.add_argument('--update_ignore','-u',required=False, default= False, type = bool, help='update ignore')
+parser.add_argument('--skip_existing','-s',required=False, default= True, type = bool, help='dont process')
+parser.add_argument('--map_coord','-m',required=False, default= True, type = bool, help='update ignore')
 #Save arguments
 args = parser.parse_known_args()[0]
 
@@ -67,6 +64,11 @@ with open('./dataStore/metalib.json', 'r') as f:
   own_meta = json.load(f)
 
 
+skip_existing = args.update_ignore
+map_coord = args.skip_existing
+parse_flag = True
+
+
 coord_dict = {}
 
 for video_path in target_paths:
@@ -81,6 +83,7 @@ for video_path in target_paths:
 
     if day not in own_meta.keys():
         own_meta[day] = {}
+
     elif skip_existing:
         continue
 

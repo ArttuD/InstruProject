@@ -15,27 +15,7 @@ import csv
 import json
 
 
-print("updating ignroe and doubles")
 
-path_meta = "./dataStore/metalib.json"
-with open(path_meta, "r") as f:
-    own_meta = json.load(f)
-
-path = "./dataStore/ignore.json"
-with open(path, "r") as f:
-    datas = json.load(f)
-
-for count, ckey in enumerate(datas.keys()):
-
-    own_meta[ckey]["ignore"] = (np.array(datas[ckey]["ignore"])-1).tolist()
-    own_meta[ckey]["multi"] = (np.array(datas[ckey]["multi"])-1).tolist()
-
-
-with open('./dataStore/metalib.json', 'w', encoding='utf-8') as f:
-    json.dump(own_meta, f, ensure_ascii=False, indent=4)
-
-
-"""
 ##240306 -> 240303, Write overgrown and label it as overgrown
 
 # %%
@@ -76,4 +56,3 @@ with open('./dataStore/metalib.json', 'w', encoding='utf-8') as f:
     json.dump(own_meta, f, ensure_ascii=False, indent=4)
 
 # %%
-"""

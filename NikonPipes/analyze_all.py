@@ -127,7 +127,6 @@ parser.add_argument('--blur','-b',required=False,default= [[]], help='blurred im
 #Save arguments
 args = parser.parse_known_args()[0]
 
-
 otsu_list = args.blur
 otsu_list_counter = 0
 otsu_flag = False
@@ -204,6 +203,10 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
 
         for k in range(metas["n_fields"]): #
             
+            if (k in own_meta[day]["ignore"]) | (k in own_meta[day]["multi"]):
+                print("skipping ignored")
+                continue
+
             flag_tracking = True
 
             if k in otsu_files:
