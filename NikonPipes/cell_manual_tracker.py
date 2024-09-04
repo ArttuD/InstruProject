@@ -12,6 +12,7 @@ class manual_tracker():
     def __init__(self, arg) -> None:
 
         if args.path:
+            print("received", args.path)
             self.target_paths = [args.path]
         else:
             self.target_paths = self.find_path()
@@ -227,12 +228,14 @@ class manual_tracker():
 
         for video_path in tqdm.tqdm(self.target_paths, total=len(self.target_paths)):
 
-            print(video_path)
+            print("Analysings", video_path)
+
             self.n_start = 0
             self.t_start = 0
             self.z_start = 0
             self.video_name = os.path.split(video_path)[-1][:-4]
             self.root_path = os.path.split(video_path)[0]
+
             self.results = os.path.join(self.root_path, "results_{}".format(self.video_name))
 
             self.saver = Cells(self.results)
@@ -244,12 +247,13 @@ class manual_tracker():
             parts = os.path.split(video_path)[-1].split("_")
             day = str(parts[0])        
 
-            self.focus_path = glob.glob(os.path.join(self.results, "corrected_focus_indixes.pkl")) #*_indixes.pkl
+            self.focus_path = glob.glob(os.path.join(self.results, "corrected_*.pkl")) #*_indixes.pkl
 
             if len(self.focus_path) == 0:
                 print("No focus correction!")
-                self.focus_path = glob.glob(os.path.join(self.results, "focus_indixes.pkl"))
-            
+                self.focus_path = glob.glob(os.path.join(self.results, "focus_*.pkl"))
+
+
             with open(self.focus_path[0], 'rb') as f:
                 self.focus_dict = pickle.load(f)  
 
@@ -260,6 +264,7 @@ class manual_tracker():
             with ND2Reader(video_path) as images:
 
                 self.metas = load_metadata(images)
+
                 if self.metas["n_channels"] == 2:
                     self.FL_flag = True
                 else:
@@ -276,6 +281,11 @@ class manual_tracker():
             
                 
                 for k in range(self.n_start, self.metas["n_fields"]):
+
+                    if (k in self.own_meta[day]["ignore"]) | (k in self.own_meta[day]["multi"]):
+                        print("skipping ignored")
+                        continue
+
                     self.k = k
                     t_cap = True
 
