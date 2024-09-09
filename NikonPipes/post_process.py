@@ -69,7 +69,7 @@ class Change_Level():
 class PostProcess():
 
     def __init__(self, args) -> None:
-        
+
         if args.path:
             self.target_paths = [args.path]
         else:
@@ -255,11 +255,13 @@ class PostProcess():
 
             pickel_path = glob.glob(os.path.join(results,"{}_corrected_detections.pkl".format(video_name)))
 
+            print(pickel_path)
+
             if len(pickel_path) == 0:
                 print("No pkl corrected file!")
-                pickel_path = os.path.join(results,"{}_detections.pkl".format(video_name))
+                pickel_path = glob.glob(os.path.join(results,"{}_detections.pkl".format(video_name)))
 
-            with open(pickel_path, 'rb') as f:
+            with open(pickel_path[0], 'rb') as f:
                 self.data_dict = pickle.load(f)
 
             if (day not in self.own_meta.keys()) | (day == "240522"):
@@ -466,7 +468,7 @@ class PostProcess():
                     self.pts = []
                     start_idx = - 1
                     choosing = False
-                elif kk == 103: #E end tracking
+                elif kk == 103: #G end overgrown
                     self.pts = []
                     start_idx = - 2
                     choosing = False

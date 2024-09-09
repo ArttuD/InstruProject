@@ -6,6 +6,7 @@ data {
   int N_locations;
   int N_materials;
   int N_ids;
+
   array[N_samples] int material_ids;
   array[N_holders] int sample_ids;
   array[N_locations] int holder_ids;
@@ -18,6 +19,7 @@ data {
   array[N_train] int train_ids;
 }
 parameters {
+
   vector[N_materials] mu;
   vector<lower=0>[N_materials] sigma;
   vector<lower=0>[N_materials] sigma_sample; 
@@ -31,10 +33,10 @@ parameters {
   // real<lower=0> sigma_materials;
   // real<lower=0> sigma_common;
 
-  vector<lower=0>[N_materials] mu_sigma;
-  vector<lower=0>[N_materials] sigma_materials;
+  real<lower=0> mu_sigma;
+  real<lower=0> sigma_materials;
 
-  vector<lower=0>[N_materials] sigma_common;
+  vector<lower=0>[N_ids] sigma_common;
 }
 transformed parameters {
   vector[N_samples] mu_samples = mu[material_ids] + sigma[material_ids].*z_samples;
@@ -44,17 +46,16 @@ transformed parameters {
 model{
 
   mu ~ std_normal();
+  mu_sigma ~  normal(0,1); 
+
   sigma ~ std_normal();
   sigma_sample ~ std_normal();
   sigma_holders ~ std_normal();
+  sigma_materials ~ normal(0,1);
+
   z_samples ~ std_normal();
   z_holders ~ std_normal();
   z_measurements ~ std_normal();
-
-  mu_sigma ~  normal(0,1); //weakly informative, practically non-informative, priors are usually normal distributions with mean zero and std 1
-  sigma_materials ~ normal(0,1);
-
-  //inverse gamma distribution, >0, favors values close to 0
 
   sigma_common ~ inv_gamma(mu_sigma,sigma_materials);
 

@@ -41,6 +41,10 @@ for ckey in own_meta.keys():
     else:
         print("missing from", ckey)
 
+with open('./dataStore/metalib.json', 'w', encoding='utf-8') as f:
+    json.dump(own_meta, f, ensure_ascii=False, indent=4)
+
+
 # %% 
 
 for ckey in own_meta.keys():
