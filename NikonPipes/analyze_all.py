@@ -168,9 +168,14 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
     if day == "240304":
         local_flag = True
 
-    focus_path = glob.glob(os.path.join(results, "*_indixes.pkl"))
+    focus_path = glob.glob(os.path.join(results, "corrected_focus_indixes.pkl")) #*_indixes.pkl
 
     if len(focus_path) == 0:
+        print("No corrected focus correction!")
+        focus_path = glob.glob(os.path.join(results, "focus_indixes.pkl"))
+
+    if len(focus_path) == 0:
+        print("No focus correction!")
         focus_flag = False
     else:
         focus_flag = True
