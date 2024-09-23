@@ -169,8 +169,9 @@ class focus_detector():
 
                             img_fl = images.get_frame_2D(c=idx_fl, t=j, z=idx, x=0, y=0, v=k)
                             img_bf = images.get_frame_2D(c=idx_bf, t=j, z=idx, x=0, y=0, v=k)
-                            im = cv2.addWeighted( img_bf, self.alpha, img_fl, self.beta, 0.0, 0.0)
-                            im = (im/(2**16)*2**8).astype("uint8")
+                            #im = cv2.addWeighted( img_bf, self.alpha, img_fl, self.beta, 0.0, 0.0)
+
+                            im = (img_bf/(np.max(img_bf))*255).astype("uint8")
                             img_vis = np.stack((im,im,im), axis = -1)
 
                         else:
@@ -191,7 +192,7 @@ class focus_detector():
 
                             img_bf = images.get_frame_2D(c=0, t=j, z=idx, x=0, y=0, v=k)
 
-                            img_bf = (img_bf/(2**16)*2**8).astype("uint8")
+                            img_bf = (img_bf/(np.max(img_bf))*255).astype("uint8")
                             img_vis = np.stack((img_bf, img_bf, img_bf), axis = -1)
 
                         if j !=0 and j%plot_ind == 0:
@@ -234,7 +235,7 @@ class focus_detector():
                             else:
                                 img_bf = images.get_frame_2D(c=0, t=id_repair, z=start_idx, x=0, y=0, v=k)
 
-                            img_bf = (img_bf/(2**16)*2**8).astype("uint8")
+                            img_bf = (img_bf/(np.max(img_bf))*255).astype("uint8")
                             img_bf = np.stack((img_bf, img_bf, img_bf), axis = -1)
 
                             windowText = "t={}, z={}, v={}".format( id_repair, start_idx, k)

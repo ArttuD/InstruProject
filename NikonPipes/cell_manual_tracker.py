@@ -20,6 +20,8 @@ class manual_tracker():
         self.scaled_size = 1024
         self.converter = 2304/self.scaled_size
 
+        self.normImg = True
+
         self.find_flag = False
         self.log_init = False
 
@@ -99,7 +101,11 @@ class manual_tracker():
                     z += 1
                 current = images.get_frame_2D(c=0, t=j, z=z, x=0, y=0, v=k)
 
-        img_bf = (current/(2**16)*2**8).astype("uint8")
+        if not self.normImg:
+            img_bf = (current/(2**16)*2**8).astype("uint8")
+        else:
+            img_bf = (current/(np.max(current))*2**8).astype("uint8")
+
         img_bf = np.stack((img_bf, img_bf, img_bf), axis = -1)
         #plt.imshow(img_bf)
         #plt.show()
@@ -310,29 +316,31 @@ class manual_tracker():
                             print(k, self.t_start)
                             try:
                                 idx = int(self.focus_dict[k][self.t_start])
+                                
+                                if idx == -1:
+                                    choosing = False
+                                    t_cap = False
+
+                                self.z_start = idx
+                                # put coordinates as text on the image
+                                self.img = self.fetch_image(images, self.t_start, self.z_start, k)
+
+                                self.t_backup = self.t_start
+
+                                self.img_moc = self.img.copy()
+
+                                if self.round == "protrusion":
+                                    self.prev_prot = self.saver.return_timestep(self.k, self.t_start-1)
+                                    self.draw_circles()
+
+                                windowText = r'timestep {}, method {} t={}/{}, z={}/{}, v={}/{}'.format(self.t_backup, self.round , self.t_start, self.metas["n_frames"], self.z_start, self.metas["n_levels"], self.k, self.metas["n_fields"])
+                                cv2.putText(self.img_moc, windowText,(150, 150), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 2)
+
                             except:
                                 print("Issues with focus")
                                 choosing = False
                                 t_cap = False
 
-                            if idx == -1:
-                                choosing = False
-                                t_cap = False
-
-                            self.z_start = idx
-                            # put coordinates as text on the image
-                            self.img = self.fetch_image(images, self.t_start, self.z_start, k)
-
-                            self.t_backup = self.t_start
-
-                            self.img_moc = self.img.copy()
-
-                            if self.round == "protrusion":
-                                self.prev_prot = self.saver.return_timestep(self.k, self.t_start-1)
-                                self.draw_circles()
-
-                            windowText = r'timestep {}, method {} t={}/{}, z={}/{}, v={}/{}'.format(self.t_backup, self.round , self.t_start, self.metas["n_frames"], self.z_start, self.metas["n_levels"], self.k, self.metas["n_fields"])
-                            cv2.putText(self.img_moc, windowText,(150, 150), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 2)
 
                             while choosing:
 

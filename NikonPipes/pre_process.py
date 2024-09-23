@@ -114,7 +114,7 @@ for video_path in target_paths:
                 cv2.setMouseCallback("win", mousePoints)
 
                 img = images.get_frame_2D(c=0, t=0, z=vis_level, x=0, y=0, v=i)
-
+                img = (img/(np.max(img))*255).astype("uint8")
                 #img = skimage.exposure.equalize_hist(img)
 
                 cv2.imshow("win",img)
