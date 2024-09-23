@@ -28,8 +28,8 @@ def process_FL(img_bf, img_fl, x_start, y_start, otsu_flag):
         img_ = skimage.exposure.equalize_adapthist(img_fl, clip_limit=0.03)
         img_ = cv2.normalize(img_, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
         ret2,th2 = cv2.threshold(img_.astype("uint8"),0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-        th2 = dilation(th2, disk(5))
-        frame = closing(th2, disk(5))
+        th2 = dilation(th2, disk(1))
+        frame = closing(th2, disk(3))
 
         #frame = dilation(frame, disk(5))
         #frame = closing(frame, disk(5))
@@ -77,7 +77,7 @@ def process_BF(img_bf, x_start, y_start, local_flag):
         tuned_bf = tuned_bf > th
         tuned_bf = 1-tuned_bf
     
-    tuned_bf = dilation(tuned_bf, disk(5)) #10
+    tuned_bf = dilation(tuned_bf, disk(3)) #10
     tuned_bf = closing(tuned_bf, disk(10))
     #tuned_bf = closing(tuned_bf, disk(3))
     frame = tuned_bf.astype("uint8") #(tuned_bf/(2**16)*2**8).astype("uint8")
@@ -263,7 +263,7 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
                     img_fl = images.get_frame_2D(c=idx_fl, t=j, z=idx, x=0, y=0, v=k)
                     img_bf = images.get_frame_2D(c=idx_bf, t=j, z=idx, x=0, y=0, v=k)
 
-                    out_vis, x, y, r, prev, big_idx, contours, x_final, y_final = process_FL(img_bf, img_fl, x_final, y_final, otsu_flag)
+                    out_vis,x, y, r, prev, big_idx, contours, x_final, y_final = process_FL(img_bf, img_fl, x_final, y_final, otsu_flag)
                 else:
                     if focus_flag:
                         idx = int(focus_dict[k][j])
