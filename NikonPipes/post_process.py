@@ -208,14 +208,13 @@ class PostProcess():
 
     def video_saver(self, imgs, mask, big_idx, loc):
         
-        
         out_name = os.path.join(self.results,'{}_{}_{}.mp4'.format(os.path.split(self.video_path)[1][:-4], (self.k_initial), (self.line_name) ) )
         out_process = cv2.VideoWriter(out_name, cv2.VideoWriter_fourcc(*"mp4v"), 5, (2304,2304))
         print("Generating video", out_name)
 
         for i in range(len(imgs)):
 
-            if self.focus_dict[loc][i] == -1:
+            if (self.focus_dict[loc][i] == -1) | (self.focus_dict[loc][i] == -2):
                 break
 
             cnt = mask[i]
@@ -329,7 +328,7 @@ class PostProcess():
 
                         idx = int(self.focus_dict[k][j])
 
-                        if (idx == -1):
+                        if (idx == -1) | (idx == -2):
                             self.handler =  Change_Level(fig, ax, img_plots, "./dataStore", metas)
                             fig.tight_layout()
                             plt.show()
@@ -409,6 +408,7 @@ class PostProcess():
                             break
                     
                     self.video_saver(self.img_list_video, self.data_dict[self.current_key]['mask'], self.data_dict[self.current_key]['big_idx'], k)
+
                     print("Saving dicts")
                     with open(os.path.join(results,'{}_corrected_detections.pkl'.format(os.path.split(video_path)[1][:-4])), 'wb') as f:
                         print("saving detections")
@@ -503,7 +503,7 @@ class PostProcess():
 
             if int(self.focus_dict[loc][id_repair]) != start_idx:
 
-                if start_idx == -1:
+                if (start_idx == -1) | (start_idx == -2):
                     print("Finishing tracking {} frame {} value".format(loc, id_repair, start_idx))
                     self.focus_dict[loc][id_repair] = start_idx
                     self.data_dict[self.current_key]['mask'] = self.data_dict[self.current_key]['mask'][:id_repair] 
@@ -516,7 +516,7 @@ class PostProcess():
             
         cv2.destroyAllWindows()
 
-        if start_idx == - 1:
+        if (start_idx == -1) | (start_idx == -2):
             return -1
         else:
             return 1
