@@ -503,7 +503,7 @@ class PostProcess():
 
             if int(self.focus_dict[loc][id_repair]) != start_idx:
 
-                if start_idx == -1:
+                if (start_idx == -1) | (start_idx == -2):
                     print("Finishing tracking {} frame {} value".format(loc, id_repair, start_idx))
                     self.focus_dict[loc][id_repair] = start_idx
                     self.data_dict[self.current_key]['mask'] = self.data_dict[self.current_key]['mask'][:id_repair] 
@@ -516,7 +516,7 @@ class PostProcess():
             
         cv2.destroyAllWindows()
 
-        if start_idx == - 1:
+        if (start_idx == - 1) | (start_idx == -2):
             return -1
         else:
             return 1
