@@ -516,7 +516,7 @@ class PostProcess():
             
         cv2.destroyAllWindows()
 
-        if (start_idx == -1) | (start_idx == -2):
+        if ((start_idx == -1) | (start_idx == -2)) | (start_idx == -2):
             return -1
         else:
             return 1
