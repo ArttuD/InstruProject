@@ -317,7 +317,7 @@ class manual_tracker():
                             try:
                                 idx = int(self.focus_dict[k][self.t_start])
                                 
-                                if idx == -1:
+                                if (idx == -1) | (idx == -2):
                                     choosing = False
                                     t_cap = False
 
