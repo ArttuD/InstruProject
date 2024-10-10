@@ -1596,6 +1596,250 @@ def calc_MSD(data, dt, tau):
     return MSD[:idx].mean()
 
 
+#Draw rectangle to images
+def mousePoints(event,x,y,flags,param):
+    #Crop image
+    global refPt
+    global img
+    global final_boundaries
+    global stopper
+    # Left button click
+    if event == cv2.EVENT_LBUTTONDOWN:
+        refPt = [(x, y)]
+    elif event == cv2.EVENT_LBUTTONUP:
+        refPt.append((x, y))
+        final_boundaries.append((refPt[0],refPt[1]))
+        stopper = True
+        cv2.imshow("win", img)
+        print("two clicks!")
+    elif event == cv2.EVENT_MOUSEMOVE and flags == cv2.EVENT_FLAG_LBUTTON:
+        clone = img.copy()
+        cv2.rectangle(clone, refPt[0], (x, y), (0, 255, 0), 4)
+        cv2.imshow("win", clone)
+
+def fetch_coords_well(video_path):
+    fh = video_path
+    label_map = None
+
+    if isinstance(fh, str):
+        if not fh.endswith(".nd2"):
+            raise InvalidFileType(
+                ("The file %s you want to read with nd2reader" % fh)
+                + " does not have extension .nd2."
+            )
+        
+        filename = fh
+
+        fh = open(fh, "rb")
+
+    _fh = fh
+    _fh.seek(-8, 2)
+    chunk_map_start_location = struct.unpack("Q", _fh.read(8))[0]
+    _fh.seek(chunk_map_start_location)
+    raw_text = _fh.read(-1)
+    label_map = LabelMap(raw_text)
+    datasTT = RawMetadata(_fh, label_map)
+
+    coord_list_x = []
+    coord_list_y = []
+    coord_list_z = []
+
+    well_info = datasTT.image_metadata[b'SLxExperiment'][b'ppNextLevelEx'][b''][b'uLoopPars'][b'Points'][b'']
+
+    for i in range(len(well_info)):
+        
+        coord_y = (well_info[i][b'dPosY'])
+        coord_x = (well_info[i][b'dPosX'])
+        coord_z = (well_info[i][b'dPosZ'])
+
+        coord_list_x.append(coord_x); coord_list_y.append(coord_y); coord_list_z.append(coord_z)
+    
+    return coord_list_x, coord_list_y, coord_list_z
+
+def parse_raw_dict(day, video_path, own_meta):
+
+    fh = video_path
+
+    parts = os.path.split(video_path)[-1].split("_")
+    day = str(parts[0])
+
+    label_map = None
+
+    if isinstance(fh, str):
+        if not fh.endswith(".nd2"):
+            raise InvalidFileType(
+                ("The file %s you want to read with nd2reader" % fh)
+                + " does not have extension .nd2."
+            )
+        
+        filename = fh
+
+        fh = open(fh, "rb")
+
+    _fh = fh
+    _fh.seek(-8, 2)
+    chunk_map_start_location = struct.unpack("Q", _fh.read(8))[0]
+    _fh.seek(chunk_map_start_location)
+    raw_text = _fh.read(-1)
+    label_map = LabelMap(raw_text)
+    datasTT = RawMetadata(_fh, label_map)
+
+
+    seeding_density = []
+    well_name = []
+    well_info = datasTT.image_metadata[b'SLxExperiment'][b'ppNextLevelEx'][b''][b'uLoopPars'][b'Points'][b'']
+    for i in range(len(well_info)):
+        
+        label = (well_info[i][b'dPosName']).decode("utf8")
+        lable_parts = label.split("_")
+        if len(lable_parts) == 1:
+            seeding_density.append(500)
+        else:
+            try:
+                seeding_density.append(int(lable_parts[1]))
+            except:
+                seeding_density.append(500)
+                print(lable_parts[1])
+
+        well_name.append(lable_parts[0])
+
+    own_meta[day]["cell"] = well_name
+    own_meta[day]["seeding_density"] = seeding_density
+    own_meta[day]["dt"] = datasTT.image_metadata[b'SLxExperiment'][b'uLoopPars'][b'dPeriod']*1e-3
+
+    return own_meta
+
+
+
+import math
+
+def dotproduct(v1, v2):
+  return sum((a*b) for a, b in zip(v1, v2))
+
+def length(v):
+  return math.sqrt(dotproduct(v, v))
+
+def angle(v1, v2):
+  return math.acos(dotproduct(v1, v2) / (length(v1) * length(v2)))
+
+def circular_hist(ax, x, bins=16, density=True, offset=0, gaps=False):
+    """
+    Produce a circular histogram of angles on ax.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes._subplots.PolarAxesSubplot
+        axis instance created with subplot_kw=dict(projection='polar').
+
+    x : array
+        Angles to plot, expected in units of radians.
+
+    bins : int, optional
+        Defines the number of equal-width bins in the range. The default is 16.
+
+    density : bool, optional
+        If True plot frequency proportional to area. If False plot frequency
+        proportional to radius. The default is True.
+
+    offset : float, optional
+        Sets the offset for the location of the 0 direction in units of
+        radians. The default is 0.
+
+    gaps : bool, optional
+        Whether to allow gaps between bins. When gaps = False the bins are
+        forced to partition the entire [-pi, pi] range. The default is True.
+
+    Returns
+    -------
+    n : array or list of arrays
+        The number of values in each bin.
+
+    bins : array
+        The edges of the bins.
+
+    patches : `.BarContainer` or list of a single `.Polygon`
+        Container of individual artists used to create the histogram
+        or list of such containers if there are multiple input datasets.
+    """
+    # Wrap angles to [-pi, pi)
+    x = (x+np.pi) % (2*np.pi) - np.pi
+
+    # Force bins to partition entire circle
+    if not gaps:
+        bins = np.linspace(-np.pi, np.pi, num=bins+1)
+
+    # Bin data and record counts
+    n, bins = np.histogram(x, bins=bins)
+
+    # Compute width of each bin
+    widths = np.diff(bins)
+
+    # By default plot frequency proportional to area
+    if density:
+        # Area to assign each bin
+        area = n / x.size
+        # Calculate corresponding bin radius
+        radius = (area/np.pi) ** .5
+    # Otherwise plot frequency proportional to radius
+    else:
+        radius = n
+
+    # Plot data on ax
+    patches = ax.bar(bins[:-1], radius, zorder=1, align='edge', width=widths,
+                     edgecolor="black", fill=False, linewidth=2) #radius
+
+    # Set the direction of the zero angle
+    ax.set_theta_offset(offset)
+
+    # Remove ylabels for area plots (they are mostly obstructive)
+    if density:
+        ax.set_yticks([])
+
+    return n, bins, patches
+
+def fetch_time(vid):
+    fh = vid
+    label_map = None
+
+    if isinstance(fh, str):
+        if not fh.endswith(".nd2"):
+            raise InvalidFileType(
+                ("The file %s you want to read with nd2reader" % fh)
+                + " does not have extension .nd2."
+            )
+        
+        filename = fh
+
+        fh = open(fh, "rb")
+
+    _fh = fh
+    _fh.seek(-8, 2)
+    chunk_map_start_location = struct.unpack("Q", _fh.read(8))[0]
+    _fh.seek(chunk_map_start_location)
+    raw_text = _fh.read(-1)
+    label_map = LabelMap(raw_text)
+    datasTT = RawMetadata(_fh, label_map)
+
+    time_info = int(datasTT.image_metadata[b'SLxExperiment'][b'uLoopPars'][b'dPeriod'])
+
+    return time_info*10**(-3)/60**2
+
+
+def parse_name(name):
+
+    if name == "T":
+        name = "MCF10AT"
+    elif name == "MCFA10A":
+        name = "MCF10A"
+    elif name == "MCFA10":
+        name = "MCF10A"
+    elif name == "DCIS":
+        name = "DCIS.COM"
+    elif (name != "MCF10A") & (name != "MCF10AT") & (name != "DCIS.COM"):
+        print("name {} did not belong to any group".format(name))
+
+    return name
+
 """
 
 Stored frame by frame analysis
