@@ -1,0 +1,14 @@
+library(dplyr)
+
+# loading and selecting data
+df <- read.csv('C:/Users/srboval1/Exp1_N.csv') 
+print(colnames(df))
+analysis_df <- subset(df, select = c("cell_line", "material", "area_N", "convexity_perimeter_N", "compactness_N", "aspect_ratio_N"))
+print(colnames(analysis_df))
+
+# min-max scaling on selected columns
+min_max_scale <- function(x) {(x - min(x)) / (max(x) - min(x))}
+to_scale <- c("area_N", "convexity_perimeter_N", "compactness_N", "aspect_ratio_N")
+scaled_cols <- as.data.frame(lapply(analysis_df[to_scale], min_max_scale))
+final <- cbind(analysis_df[c("cell_line", "material")], scaled_cols)
+print(colnames(final))
