@@ -49,18 +49,24 @@ class Collect_Data():
         self.target_paths += glob.glob("G:/instru_projects/TimeLapses/u-wells/*/*.nd2") 
         self.target_paths += glob.glob("E:/instru_projects/TimeLapses/u-wells/*/*.nd2")
         self.target_paths += glob.glob("H:/instru_projects/TimeLapses/u-wells/*/*.nd2")
+        self.target_paths += glob.glob("I:/instru_projects/TimeLapses/u-wells/*/*.nd2")
+        self.target_paths += glob.glob("J:/instru_projects/TimeLapses/u-wells/*/*.nd2")
 
         self.paths_single_track = glob.glob("D:/instru_projects/TimeLapses/u-wells/*/*/data_tracks_results.csv") 
         self.paths_single_track += glob.glob("F:/instru_projects/TimeLapses/u-wells/*/*/data_tracks_results.csv")
         self.paths_single_track += glob.glob("G:/instru_projects/TimeLapses/u-wells/*/*/data_tracks_results.csv") 
         self.paths_single_track += glob.glob("E:/instru_projects/TimeLapses/u-wells/*/*/data_tracks_results.csv")
         self.paths_single_track += glob.glob("H:/instru_projects/TimeLapses/u-wells/*/*/data_tracks_results.csv")
+        self.paths_single_track += glob.glob("I:/instru_projects/TimeLapses/u-wells/*/*/data_tracks_results.csv")
+        self.paths_single_track += glob.glob("J:/instru_projects/TimeLapses/u-wells/*/*/data_tracks_results.csv")
 
         self.paths_single_vector = glob.glob("D:/instru_projects/TimeLapses/u-wells/*/*/data_vector_results.csv") 
         self.paths_single_vector += glob.glob("F:/instru_projects/TimeLapses/u-wells/*/*/data_vector_results.csv")
         self.paths_single_vector += glob.glob("G:/instru_projects/TimeLapses/u-wells/*/*/data_vector_results.csv") 
         self.paths_single_vector += glob.glob("E:/instru_projects/TimeLapses/u-wells/*/*/data_vector_results.csv")
-        self.paths_single_vector += glob.glob("H:/instru_projects/TimeLapses/u-wells/*/*/data_vector_results.csv")
+        self.paths_single_vector += glob.glob("H:/instru_projects/TimeLapses/u-wells/*/*/data_vector_results.csv") 
+        self.paths_single_vector += glob.glob("I:/instru_projects/TimeLapses/u-wells/*/*/data_vector_results.csv")
+        self.paths_single_vector += glob.glob("J:/instru_projects/TimeLapses/u-wells/*/*/data_vector_results.csv")
 
         with open('./dataStore/metalib.json', 'r') as f:
             self.own_meta = json.load(f)
@@ -118,7 +124,7 @@ class Collect_Data():
                 parts_ = "".join(parts_)
 
                 found_flag = False
-                for letter in ["F", "G", "D", "G", "E", "H"] :#
+                for letter in ["F", "G", "D", "G", "E", "H", "I", "J"] :#
 
                     probe_path = os.path.join(os.path.split(video_path)[0], parts_)
                     probe_path = list(probe_path)
@@ -159,8 +165,8 @@ class Collect_Data():
             fig = px.scatter_3d(df, x='x', y='y', z='z',
                         color='well_id')
             
-            plotly.offline.plot(fig, filename=os.path.join('./dataStore', "mathced_{}.html".format(meas_run)))
-            fig.close()
+            #plotly.offline.plot(fig, filename=os.path.join('./dataStore', "mathced_{}.html".format(meas_run)))
+            #fig.close()
 
             meas_run += 1
 
@@ -324,7 +330,9 @@ class Collect_Data():
                     df_lists.append(df_temp)
             
         df_all = pd.concat(df_temp)
+
         df_all.loc[df_all["cell_label"] == "T", "cell_label"] = "MCF10AT"
+        df_all.loc[df_all["cell_label"] == "MFC10AT", "cell_label"] = "MCF10AT"
         df_all.loc[df_all["cell_label"] == "MCFA10A", "cell_label"] = "MCF10A"
         df_all.loc[df_all["cell_label"] == "MCFA10", "cell_label"] = "MCF10A"
         df_all.loc[df_all["cell_label"] == "DCIS", "cell_label"] = "DCIS.COM"
@@ -333,9 +341,11 @@ class Collect_Data():
         
     def save(self):
     
-        self.spheroid_info.to_csv('./dataStore/ExpDesign2.csv')  
+        self.spheroid_info.to_csv('./dataStore/ExpDesign2_.csv')  
+        self.single_info.to_csv('./dataStore/ExpDesign2_single_.csv')  
+        self.vector_info.to_csv('./dataStore/ExpDesign2_vector_.csv')   
 
-        with open("./dataStore/ExpDesig2ID.pkl", 'wb') as f:
+        with open("./dataStore/ExpDesig2ID_.pkl", 'wb') as f:
             pickle.dump(self.cntDict, f)
 
 
@@ -539,3 +549,9 @@ class Collect_Data():
         df = pd.concat(df_all)
 
         return df
+
+
+if __name__ == "__main__":
+    host = Collect_Data()
+    host.worker()
+    host.save()

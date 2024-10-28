@@ -39,11 +39,13 @@ class IMMTrack(Track):
         kf_RW.P[5:,5:] *= 10
         # measurement uncertainty (x,y,z,v,i) microm
         kf_RW.R = np.diag([1,1,1,1,1])*1e-2
+
         kf_RW.Q *= 1.
         kf_RW.Q[[5,6,7,8,9,10],[5,6,7,8,9,10]] *= 5.
 
         # linear extrapolation of last 2
         kf_FLE = KalmanFilter(dim_x=11,dim_z=5)
+
         kf_FLE.x = np.zeros(11)
         kf_FLE.F = np.array([[2,0,0,0,0,-1,0,0,0,0,0],
                             [0,2,0,0,0,0,-1,0,0,0,0],
@@ -144,7 +146,7 @@ class IMMTrack(Track):
         return dist[:,0]
 
     @staticmethod
-    def associate(measurements,trackers):
+    def associate(measurements,trackers, gating_):
 
         # calculate L
         L = np.zeros((measurements.shape[0],len(trackers)))
@@ -244,7 +246,7 @@ class IMMTrack(Track):
         matches = []
         for m in matched_indices:
             # gating
-            if(gating_euc[m[0], m[1]]>100):
+            if(gating_euc[m[0], m[1]]>gating_):
                 unmatched_detections.append(m[0])
                 unmatched_trackers.append(m[1])
             else:

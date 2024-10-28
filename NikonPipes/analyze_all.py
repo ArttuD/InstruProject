@@ -262,7 +262,6 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
 
                     img_fl = images.get_frame_2D(c=idx_fl, t=j, z=idx, x=0, y=0, v=k)
                     img_bf = images.get_frame_2D(c=idx_bf, t=j, z=idx, x=0, y=0, v=k)
-
                     out_vis,x, y, r, prev, big_idx, contours, x_final, y_final = process_FL(img_bf, img_fl, x_final, y_final, otsu_flag)
                 else:
                     if focus_flag:
@@ -286,7 +285,6 @@ for video_path in tqdm.tqdm(target_paths, total=len(target_paths)):
                             if current > prev:
                                 prev = current
                                 idx = z
-
                     img_bf = images.get_frame_2D(c=0, t=j, z=idx, x=0, y=0, v=k)
                     out_vis, x, y, r, prev, big_idx, contours, x_final, y_final = process_BF(img_bf, x_final, y_final, local_flag)
 

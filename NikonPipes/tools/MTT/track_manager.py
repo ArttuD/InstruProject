@@ -3,7 +3,7 @@ from tools.MTT.imm_track import IMMTrack
 
 class TrackManager:
 
-    def __init__(self,dims=5,min_count=1,max_count=6,gating=10):
+    def __init__(self,dims=5,min_count=1,max_count=6,gating=10, gating_=100):
         self.trackers = []
         self.trackers_all = []
         self.dims = dims
@@ -11,6 +11,7 @@ class TrackManager:
         self.max_count = max_count
         self.frame_count = 0
         self.gating = gating
+        self.gating_ = gating_
 
 
     def update(self,dets,index,type_labels):
@@ -34,7 +35,7 @@ class TrackManager:
         for t in reversed(to_del):
             self.trackers.pop(t)
             
-        matched, unmatched_dets, unmatched_trks = IMMTrack.associate(dets,self.trackers)
+        matched, unmatched_dets, unmatched_trks = IMMTrack.associate(dets,self.trackers, self.gating_)
         pos = []
         for m in matched:
             #print('----')
@@ -62,7 +63,8 @@ class TrackManager:
                 self.trackers.append(trk)
                 self.trackers_all.append(trk)
             else:
-                print("gating")
+                pass
+                #print("gating")
         i = len(self.trackers)
         num_killed = 0
         for trk in reversed(self.trackers):
