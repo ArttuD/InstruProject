@@ -29,6 +29,7 @@ class Track:
             @associated: True/False if there is a measurement
         """
         if not self.killed:
+            
             self.count += 1
             if associated:
                 self.missed = 0

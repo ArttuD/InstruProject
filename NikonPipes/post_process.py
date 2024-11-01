@@ -352,7 +352,7 @@ class PostProcess():
                             img_bf = images.get_frame_2D(c=idx_bf, t=j-1, z=idx, x=0, y=0, v=k)
 
 
-                        img_bf = (img_bf/(2**16)*2**8).astype("uint8")
+                        img_bf = (img_bf/(np.max(img_bf))*2**8).astype("uint8")
                         img_bf = np.stack((img_bf, img_bf, img_bf), axis = -1)
 
                         self.img_list_video.append(img_bf.copy()) 
@@ -446,7 +446,7 @@ class PostProcess():
                 except:
                     img_bf = images.get_frame_2D(c=idx_bf, t=id_repair-1, z=start_idx, x=0, y=0, v=loc)
 
-                img_bf = (img_bf/(2**16)*2**8).astype("uint8")
+                img_bf = (img_bf/(np.max(img_bf))*2**8).astype("uint8")
                 img_bf = np.stack((img_bf, img_bf, img_bf), axis = -1)
 
                 self.img_bf = img_bf.copy() 

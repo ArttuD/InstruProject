@@ -8,8 +8,8 @@ import cv2
 import pickle
 from nd2reader import ND2Reader
 
-#from tools.MTT.track_manager import TrackManager
-from tools.cMTT.track_manager import TrackManager
+from tools.MTT.track_manager import TrackManager
+#from tools.cMTT.track_manager import TrackManager
 from tools.func import *
 
 class track_main():
@@ -24,12 +24,18 @@ class track_main():
         self.gen = args.gen
 
 
-        #self.tracker = TrackManager(min_count=5, max_count = 5, gating = 500)
-        self.tracker  = TrackManager(min_count=5,max_count=5,gating=500)
+        
+        self.tracker  = None
+        self.track_ID = 0
+        self.init_tracker()
         self.kk = None 
         #self.df_tot = pd.DataFrame(data=None, columns=["day", "time", "x", "y", "z", "ID","cell_label","well_id","measurement_id","matrix"]) #location
         self.df_tot_single = pd.DataFrame()
         self.df_tot_prot = pd.DataFrame()
+
+    def init_tracker(self):
+        #self.tracker = TrackManager(min_count=5, max_count = 6, gating = 500)
+        self.tracker  = TrackManager(min_count=5,max_count=6,gating = 75, gating_= 500)
 
     def find_paths(self):
         paths_single_track = glob.glob("D:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv") 
@@ -37,6 +43,8 @@ class track_main():
         paths_single_track += glob.glob("G:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv") 
         paths_single_track += glob.glob("E:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv")
         paths_single_track += glob.glob("H:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv")
+        paths_single_track += glob.glob("I:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv")
+        paths_single_track += glob.glob("J:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv")
 
         return paths_single_track
 
@@ -104,6 +112,7 @@ class track_main():
 
 
             for tags, data_location in df.groupby(["location"]):
+                self.init_tracker()
 
                 self.loc = tags[0]
 
@@ -139,7 +148,7 @@ class track_main():
                 print("focus dict missing", tags_, "in location", self.loc)
                 break
 
-            if focus_idx == -1:
+            if (focus_idx == -1) | (focus_idx == -2):
                 break
             
             print("tags", tags_)
@@ -166,7 +175,9 @@ class track_main():
             data_stamp["dummy"] = 1
 
             dets = data_stamp[["x", "y", "z", "labels", "dummy"]].values
-            self.tracker.update(dets, tags_, np.zeros(data_stamp.shape[0]))
+
+            self.tracker.update(dets, tags_, np.zeros(data_stamp.shape[0])) 
+            #self.tracker.update(dets, tags_) #, np.zeros(data_stamp.shape[0])
             all_tracks = self.tracker.trackers
 
             for track in all_tracks:
@@ -187,6 +198,8 @@ class track_main():
 
                     if ((track_info[-1,0,0] != track_info[-1,0,1]) ):
                         if self.gen:
+                            if track.tentative:
+                                continue
                             self.vis_img = cv2.polylines(self.vis_img, np.int32([track_info]), True, t_col, 2)
                             self.vis_img = cv2.drawMarker(self.vis_img, (int(track_info[-1,0,0]),int(track_info[-1,0,1])), m_col, 0, 50, 5)
             
@@ -228,6 +241,7 @@ class track_main():
             sub_data["well_id"] = df_info['well_id'].values[0]
             sub_data["measurement_id"] = df_info['measurement_id'].values[0]
             sub_data["matrix"] = df_info['matrix'].values[0]
+            sub_data["protrusion_ID"] = label_info[0]
 
             if len(self.df_tot_prot) != 0 :
                 self.df_tot_prot = pd.concat((self.df_tot_prot, sub_data.to_frame().T))
@@ -268,7 +282,8 @@ class track_main():
             df["time"] = self.time*self.own_meta["dt"]/60**2+self.own_meta["incubation_time"]
             df["location"] = self.loc
             df["day"] = self.day
-            df["track_label"] = self.tracker.trackers[i].id
+            df["track_label"] = self.track_ID
+            self.track_ID += 1
             
             df["ID_running"] = df_info["ID_running"].values[0]
             df["cell_label"] = df_info['cell_label'].values[0]

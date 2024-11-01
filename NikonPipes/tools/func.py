@@ -1692,16 +1692,17 @@ def parse_raw_dict(day, video_path, own_meta):
         
         label = (well_info[i][b'dPosName']).decode("utf8")
         lable_parts = label.split("_")
+
         if len(lable_parts) == 1:
             seeding_density.append(500)
+            well_name.append(lable_parts[0])
         else:
             try:
                 seeding_density.append(int(lable_parts[1]))
+                well_name.append(lable_parts[0])
             except:
                 seeding_density.append(500)
-                print(lable_parts[1])
-
-        well_name.append(lable_parts[0])
+                well_name.append(lable_parts)
 
     own_meta[day]["cell"] = well_name
     own_meta[day]["seeding_density"] = seeding_density

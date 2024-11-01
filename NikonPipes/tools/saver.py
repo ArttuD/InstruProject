@@ -30,11 +30,12 @@ class Cells():
         self.data_dict =  {"cell_id": [], "time": [], "location": [], "x": [], "y": [], "z": [],"x2": [], "y2": [], "z2": [], "lenght":[], "x_vec":[], "y_vec":[], "angle":[], "width":[] }
         self.data_dict_ =  {"cell_id": [], "time": [], "location": [], "x": [], "y": [], "z": []}
 
+    def return_timestep(self,location, time):
+
         df = pd.DataFrame.from_dict(self.data_dict)
         self.prot_table = df
-
-    def return_timestep(self,location):
-        return self.prot_table[(self.prot_table["location"] == location)].reset_index(drop=True)
+        
+        return self.prot_table[(self.prot_table["location"] == location) & (self.prot_table["time"] == time)].reset_index(drop=True)
 
     def update_cell(self, det_id, t, x1, y1, z1, loc):
         
