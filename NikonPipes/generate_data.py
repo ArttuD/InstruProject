@@ -308,14 +308,19 @@ class Collect_Data():
                 df_temp = pd.DataFrame(np.zeros((1,len(self.meta_columns))), columns=self.meta_columns)
 
                 if len( self.own_meta[day]["cell"]) > loc_:
+                    cell_data = self.own_meta[day]["cell"][loc_]
                     
-                    df_temp["cell_label"] = str(self.own_meta[day]["cell"][loc_])
-                    df_temp["seeding_density"] = int(self.own_meta[day]["seeding_density"][loc_])
+                    if isinstance(cell_data, list) and len(cell_data) == 2:
+                        df_temp["cell_label"] = str(cell_data[0])  # cell_index1 -> cell_label
+                        df_temp["matrix"] = str(cell_data[1])      # cell_index2 -> matrix
+                    else:
+                        df_temp["cell_label"] = str(self.own_meta[day]["cell"][loc_])
+                        df_temp["matrix"] = str(self.own_meta[day]["matrix"])
 
+                    df_temp["seeding_density"] = int(self.own_meta[day]["seeding_density"][loc_])
                     df_temp["well_id"] = self.matched_measurements[(self.matched_measurements["day"] == day) & (self.matched_measurements["well_order"] == loc_ )]["well_id"].values[0]
                     df_temp["measurement_id"] = self.matched_measurements[(self.matched_measurements["day"] == day) & (self.matched_measurements["well_order"] == loc_)]["measurement_id"].values[0]
 
-                df_temp["matrix"] = str(self.own_meta[day]["matrix"])
                 df_temp["ID_running"] = total_ID
                 df_temp["day"] = day
                 df_temp["location"] = loc_

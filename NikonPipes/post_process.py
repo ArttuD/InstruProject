@@ -263,16 +263,16 @@ class PostProcess():
             with open(pickel_path[0], 'rb') as f:
                 self.data_dict = pickle.load(f)
 
-            if (day not in self.own_meta.keys()) | (day == "240522"):
-                print(day, "Not in keys, skipping")
-                continue
+            #if (day not in self.own_meta.keys()) | (day == "240522"):
+            #    print(day, "Not in keys, skipping")
+            #    continue
 
             with ND2Reader(video_path) as images:
                 try:
                     metas = load_metadata(images)
                 except:
                     print("broken metafile", video_path)
-                    continue
+                    exit(0)
 
                 if metas["n_channels"] == 2:
                     FL_flag = True
@@ -300,8 +300,8 @@ class PostProcess():
 
                     self.k_initial = k
                     self.current_key = "loc_{}_ch_{}".format(k, 1)
-                    if (day == "230418") & (k == 2):
-                        pass 
+                    #if (day == "230418") & (k == 2):
+                    #    pass 
 
                     sub = 0
                     j_ = 0
@@ -346,13 +346,13 @@ class PostProcess():
 
                         mask = masks[j][idx_larges[j]]
                         
-                        try:
-                            img_bf = images.get_frame_2D(c=idx_bf, t=j, z=idx, x=0, y=0, v=k)
-                        except:
-                            img_bf = images.get_frame_2D(c=idx_bf, t=j-1, z=idx, x=0, y=0, v=k)
+                        #try:
+                        img_bf = images.get_frame_2D(c=idx_bf, t=j, z=idx, x=0, y=0, v=k)
+                        #except:
+                        #    img_bf = images.get_frame_2D(c=idx_bf, t=j-1, z=idx, x=0, y=0, v=k)
 
 
-                        img_bf = (img_bf/(np.max(img_bf))*2**8).astype("uint8")
+                        img_bf = (img_bf/(np.max(img_bf))*255).astype("uint8")
                         img_bf = np.stack((img_bf, img_bf, img_bf), axis = -1)
 
                         self.img_list_video.append(img_bf.copy()) 
@@ -377,10 +377,10 @@ class PostProcess():
                             self.handler.disconnect()
                             self.response_vals = np.array(self.handler.manual)
 
-                            if metas["n_fields"] < 9:
-                                ret = self.process(metas, idx_bf, k, j-(metas["n_fields"]-1), images)
-                            else:
-                                ret = self.process(metas, idx_bf, k, j-8, images)
+                            #if metas["n_frames"] < 9:
+                            #    ret = self.process(metas, idx_bf, k, j-(metas["n_frames"]-1), images)
+                            #else:
+                            ret = self.process(metas, idx_bf, k, j-8, images)
 
                             if ret == -1:
                                 break
@@ -434,19 +434,18 @@ class PostProcess():
 
             self.pts = []
             choosing = True
-
             start_idx = int(self.focus_dict[loc][id_repair])
 
             #self.changed_countour = False
 
             while choosing:
                 self.reset_zoom()
-                try:
-                    img_bf = images.get_frame_2D(c=idx_bf, t=id_repair, z=start_idx, x=0, y=0, v=loc)
-                except:
-                    img_bf = images.get_frame_2D(c=idx_bf, t=id_repair-1, z=start_idx, x=0, y=0, v=loc)
+                #try:
+                img_bf = images.get_frame_2D(c=idx_bf, t=id_repair, z=start_idx, x=0, y=0, v=loc)
+                #except:
+                #    img_bf = images.get_frame_2D(c=idx_bf, t=id_repair-1, z=start_idx, x=0, y=0, v=loc)
 
-                img_bf = (img_bf/(np.max(img_bf))*2**8).astype("uint8")
+                img_bf = (img_bf/(np.max(img_bf))*255).astype("uint8")
                 img_bf = np.stack((img_bf, img_bf, img_bf), axis = -1)
 
                 self.img_bf = img_bf.copy() 
@@ -516,7 +515,7 @@ class PostProcess():
             
         cv2.destroyAllWindows()
 
-        if ((start_idx == -1) | (start_idx == -2)) | (start_idx == -2):
+        if (start_idx == -1) | (start_idx == -2):
             return -1
         else:
             return 1
