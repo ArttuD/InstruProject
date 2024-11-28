@@ -57,7 +57,7 @@ class Manager():
 
             v_max = np.max(self.df["location"].unique())
             df_sub = self.df[self.df["location"] == v_max]
-            t_max = np.max(self.df["time"].unique())
+            t_max = np.max(df_sub["time"].unique())
 
             df_sub = df_sub[df_sub["time"] == t_max]
             dics = df_sub.to_dict('records')
