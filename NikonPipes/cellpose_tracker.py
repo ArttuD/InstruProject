@@ -284,20 +284,23 @@ class Tracker():
 
         self.result_path = result_path
         self.day = os.path.split(result_path)[1].split("_")[1]
-        self.df = pd.read_csv(self.result_path + '/data_tracks_results.csv')
+        self.df = pd.read_csv(self.result_path + '/data_track.csv')
         #self.df = self.df.drop(["Unnamed: 0"]).reset_index(drop=True)
 
     def pipe(self):
 
         for tags, data_location in self.df.groupby(["location"]):
-            self.tracker_obj = TrackManager(min_count=5,max_count=6,gating = 200, gating_= 500)
+            self.tracker_obj = TrackManager(min_count=5,max_count=6, gating = 150, gating_= 200)
 
             data_location = data_location.reset_index(drop = True)
             tags = tags[0]
 
             v = int(tags)
-            print(self.result_path + '/detector_{}_{}.mp4'.format( self.day, v ) )
-            out_name = self.result_path + '/detector_{}_{}.mp4'.format( self.day, v ) 
+            path_in_ = os.path.join(self.result_path, os.path.split(self.result_path)[1][8:])
+            path_in_ = path_in_ + '_{}_*.mp4'.format(int(v))
+            paths_ = glob(path_in_, recursive=True)
+
+            out_name = paths_[0] #self.result_path + '/{}_timelapse_IPN3mM_3lines_48h_comments_{}_*.mp4'.format( self.day, v ) 
 
             rec_count = 0
             cap = cv2.VideoCapture(out_name)
@@ -383,7 +386,10 @@ if __name__ == "__main__":
     #Save arguments
     args = parser.parse_known_args()[0]
 
-    process = manager(args)
-    success = process.pipe()
+    #process = manager(args)
+    #success = process.pipe()
+    tr = Tracker(args.path)
+    tr.pipe()
+
     print("Done")
     exit()

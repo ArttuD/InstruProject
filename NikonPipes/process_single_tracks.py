@@ -22,61 +22,136 @@ class track_main():
             self.target_paths = self.find_paths()
 
         self.gen = args.gen
-
-
-        
         self.tracker  = None
-        self.track_ID = 0
+
         self.init_tracker()
+
         self.kk = None 
-        #self.df_tot = pd.DataFrame(data=None, columns=["day", "time", "x", "y", "z", "ID","cell_label","well_id","measurement_id","matrix"]) #location
-        self.df_tot_single = pd.DataFrame()
-        self.df_tot_prot = pd.DataFrame()
+
 
     def init_tracker(self):
         #self.tracker = TrackManager(min_count=5, max_count = 6, gating = 500)
-        self.tracker  = TrackManager(min_count=5,max_count=6,gating = 75, gating_= 500)
+        self.tracker  = TrackManager(min_count=5,max_count=6, gating = 150, gating_= 200)
 
     def find_paths(self):
         paths_single_track = glob.glob("D:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv") 
-        paths_single_track += glob.glob("F:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv")
-        paths_single_track += glob.glob("G:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv") 
-        paths_single_track += glob.glob("E:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv")
-        paths_single_track += glob.glob("H:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv")
-        paths_single_track += glob.glob("I:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv")
-        paths_single_track += glob.glob("J:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv")
+        paths_single_track += glob.glob("F:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv*")
+        paths_single_track += glob.glob("G:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv*") 
+        paths_single_track += glob.glob("E:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv*")
+        paths_single_track += glob.glob("H:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv*")
+        paths_single_track += glob.glob("I:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv*")
+        paths_single_track += glob.glob("J:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv*")
+        #paths_single_track = glob.glob("E:/instru_projects/TimeLapses/u-wells/IPN/*/detector_track.csv") 
 
+        
         return paths_single_track
 
     def download_accesories(self):
 
-        video_name = os.path.split(self.video_path)[-1][:-4]
-        root_path = os.path.split(self.video_path)[0]
-        results = os.path.join(root_path, "results_{}".format(video_name))
-
-        focus_path = glob.glob(os.path.join(results, "corrected_focus_indixes.pkl")) #*_indixes.pkl
+        focus_path = glob.glob(os.path.join(self.results, "corrected_focus_indixes.pkl")) #*_indixes.pkl
 
         if len(focus_path) == 0:
             print("No focus correction!")
-            focus_path = glob.glob(os.path.join(results, "focus_indixes.pkl"))
+            focus_path = glob.glob(os.path.join(self.results, "focus_indixes.pkl"))
 
         with open(focus_path[0], 'rb') as f:
-            self.focus_dict = pickle.load(f)   
+            self.focus_dict = pickle.load(f) 
 
+        with open('./dataStore/metalib.json', 'r') as f:
+            self.own_meta_ = json.load(f)
+
+
+    def process_location(self, df):
+        
+        for tags_, data_stamp in df.groupby("time"):
+            tags_ = int(tags_)
+
+            data_stamp = data_stamp.reset_index(drop = True)
+            data_stamp["labels"] = 1
+            data_stamp["dummy"] = 1
+
+            try:
+                focus_idx = self.focus_dict[self.loc][tags_]
+            except:
+                print("focus dict missing", tags_, "in location", self.loc)
+                break
+
+            if (focus_idx == -1) | (focus_idx == -2):
+                print("Analysis interupted due to drifting or overgrowth.")
+                break
+
+            df_vector_sub = self.df_vector[(self.df_vector["location"] == self.loc) & (self.df_vector["time"] == tags_)]
+            protrusion_t = df_vector_sub[["x", "y", "x2", "y2"]].values
+
+            if self.gen:
+                with ND2Reader(self.video_path) as images:
+                    try:
+                        img_bf = images.get_frame_2D(c=self.idx_bf, t=tags_, z=focus_idx, x=0, y=0, v=self.loc)
+                    except:
+                        img_bf = images.get_frame_2D(c=self.idx_bf, t=tags_-1, z=focus_idx, x=0, y=0, v=self.loc)
+
+                img_bf = (img_bf/(2**16)*2**8).astype("uint8")
+                self.vis_img = np.stack((img_bf, img_bf, img_bf), axis = -1)
+
+                for i in range(protrusion_t.shape[0]):
+                    self.vis_img = cv2.arrowedLine(self.vis_img, (protrusion_t[i,0],protrusion_t[i,1]),  (protrusion_t[i,2],protrusion_t[i,3]), (0, 0, 255)  , 5)
+
+
+            dets = data_stamp[["x", "y", "z", "labels", "dummy"]].values
+            self.tracker.update(dets, tags_, np.zeros(data_stamp.shape[0])) 
+
+            all_tracks = self.tracker.trackers
+
+            if self.gen:
+                for track in all_tracks:
+
+                    if (not track.killed):
+
+                        t_col = (255,0,0)
+                        m_col = (255,0,0)
+
+                        if track.tentative:
+                            t_col = (100,100,100)
+                            m_col = (100,100,100)
+
+                        track_info = (np.array(track.history[-5:])[:,:2]).reshape((-1, 1, 2))
+
+                        if ((track_info[-1,0,0] != track_info[-1,0,1]) ):
+                            if track.tentative:
+                                continue
+
+                            self.vis_img = cv2.polylines(self.vis_img, np.int32([track_info]), True, t_col, 2)
+                            self.vis_img = cv2.drawMarker(self.vis_img, (int(track_info[-1,0,0]),int(track_info[-1,0,1])), m_col, 0, 50, 5)
+            
+                windowText = "loc: {}, time: {}".format(self.loc, tags_)
+                # put coordinates as text on the image
+                cv2.putText(self.vis_img, windowText,(100, 100), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 255), 5)
+                cv2.imshow("window",cv2.resize(self.vis_img, (1024,1024)))
+                self.out_process.write(self.vis_img)
+                
+                self.kk = cv2.waitKey(1)
+
+                if self.kk == 113: #Exit 
+                    break
 
     def pipe(self):
+
         if self.gen:
             cv2.namedWindow('window')
 
         for counter, file_path in enumerate(self.target_paths):
 
-            print(file_path)
-
             vector_file = os.path.join(os.path.split(file_path)[0], "data_vector.csv")
-            self.df_vector = pd.read_csv(vector_file)
+
+            try:
+                self.df_vector = pd.read_csv(vector_file)
+            except:
+                print("Did not find protrusions from: ", file_path, ", quiting...")
+                exit()
 
             self.parts = os.path.split(os.path.split(file_path)[0])[1].split("_")
             self.day = self.parts[1]
+
             self.video_path = os.path.split(os.path.split(file_path)[0])[0]
             self.video_path = glob.glob(os.path.join(self.video_path,"{}_*".format(self.day)))[0]
 
@@ -85,45 +160,55 @@ class track_main():
             self.results = os.path.join(root_path, "results_{}".format(video_name))
 
             self.download_accesories()
-
-            with open('./dataStore/metalib.json', 'r') as f:
-                self.own_meta = json.load(f)
             
-            self.own_meta = self.own_meta[self.day]
+            self.own_meta = self.own_meta_[self.day]
             self.pixel_size = self.own_meta["m"]
             self.z_step = self.own_meta["z_level"]
 
             with ND2Reader(self.video_path) as images:
+
                 try:
                     metas = load_metadata(images)
+
+                    if metas["n_channels"] == 2:
+                        for d in range(len(metas["channels"])):
+                            if metas["channels"][d] == 'BF':
+                                self.idx_bf = d
+                    else:
+                        self.idx_bf = 0
                 except:
                     print("broken metafile", self.video_path)
-                    continue
+                    if self.day == "240520":
+                        self.metas = { "n_fields": 7, "n_frames": 25, "n_levels": 27}
+                        self.idx_bf = 0
+                        self.idx_fl = 0
+                    else:
+                        print("Cannot open meta from ", file_path, " quiting...")
+                        exit()
 
+            df = pd.read_csv(file_path) 
 
-                if metas["n_channels"] == 2:
-                    for d in range(len(metas["channels"])):
-                        if metas["channels"][d] == 'BF':
-                            self.idx_bf = d
-                else:
-                    self.idx_bf = 0
-
-            df = pd.read_csv(file_path)
-
+            self.df_tot_single = pd.DataFrame()
+            self.df_tot_prot = pd.DataFrame()
 
             for tags, data_location in df.groupby(["location"]):
-                self.init_tracker()
 
-                self.loc = tags[0]
+                if self.gen:
+                    out_name = os.path.join(self.results,'{}_{}_{}_individual.mp4'.format(os.path.split(self.video_path)[1][:-4], (self.loc), (self.line_name) ) )
+                    self.out_process = cv2.VideoWriter(out_name, cv2.VideoWriter_fourcc(*"mp4v"), 5, (2304,2304))
+
+                self.init_tracker()
+                self.track_ID = 0
+
+
+
+                self.loc = int(tags[0])
 
                 if self.loc < len(self.own_meta["cell"]):
                     self.line_name = self.own_meta["cell"][self.loc]
                 else:
-                    self.line_name = "unknown" 
-                
-                if self.gen:
-                    out_name = os.path.join(self.results,'{}_{}_{}_individual.mp4'.format(os.path.split(self.video_path)[1][:-4], (self.loc), (self.line_name) ) )
-                    self.out_process = cv2.VideoWriter(out_name, cv2.VideoWriter_fourcc(*"mp4v"), 5, (2304,2304))
+                    print("Size of metafile dictionary does not match with data.")
+                    exit()
                 
                 data_location = data_location.reset_index(drop=True)
                 self.process_location(data_location)
@@ -135,140 +220,66 @@ class track_main():
                     break
 
                 self.save_single()
-                self.save_protrusion()
 
-
-
-    def process_location(self, df):
-        
-        for tags_, data_stamp in df.groupby("time"):
-            try:
-                focus_idx = self.focus_dict[self.loc][tags_]
-            except:
-                print("focus dict missing", tags_, "in location", self.loc)
-                break
-
-            if (focus_idx == -1) | (focus_idx == -2):
-                break
+            self.df_tot_single = pd.concat(self.df_tot_single)
+            save_path = os.path.join(self.results, "data_tracks_results.csv")
+            self.df_tot_single.to_csv(save_path, index = False)
             
-            print("tags", tags_)
-            df_vector_sub = self.df_vector[(self.df_vector["location"] == self.loc) & (self.df_vector["time"] == tags_)]
-            values = df_vector_sub[["x", "y", "x2", "y2"]].values
-
-            if self.gen:
-
-                with ND2Reader(self.video_path) as images:
-
-                    try:
-                        img_bf = images.get_frame_2D(c=self.idx_bf, t=tags_, z=focus_idx, x=0, y=0, v=self.loc)
-                    except:
-                        img_bf = images.get_frame_2D(c=self.idx_bf, t=tags_-1, z=focus_idx, x=0, y=0, v=self.loc)
-
-                img_bf = (img_bf/(2**16)*2**8).astype("uint8")
-                self.vis_img = np.stack((img_bf, img_bf, img_bf), axis = -1)
-
-                for i in range(values.shape[0]):
-                    self.vis_img = cv2.arrowedLine(self.vis_img, (values[i,0],values[i,1]),  (values[i,2],values[i,3]), (0, 0, 255)  , 5)
-
-            data_stamp = data_stamp.reset_index(drop = True)
-            data_stamp["labels"] = 1
-            data_stamp["dummy"] = 1
-
-            dets = data_stamp[["x", "y", "z", "labels", "dummy"]].values
-
-            self.tracker.update(dets, tags_, np.zeros(data_stamp.shape[0])) 
-            #self.tracker.update(dets, tags_) #, np.zeros(data_stamp.shape[0])
-            all_tracks = self.tracker.trackers
-
-            for track in all_tracks:
-
-                if (not track.killed):
-
-                    t_col = (255,0,0)
-                    m_col = (255,0,0)
-
-                    if track.tentative:
-                        t_col = (100,100,100)
-                        m_col = (100,100,100)
-
-                    track_info = (np.array(track.history[-5:])[:,:2]).reshape((-1, 1, 2))
-                    
-                    #if track_info.shape[0] > 1:
+            self.save_protrusion()
 
 
-                    if ((track_info[-1,0,0] != track_info[-1,0,1]) ):
-                        if self.gen:
-                            if track.tentative:
-                                continue
-                            self.vis_img = cv2.polylines(self.vis_img, np.int32([track_info]), True, t_col, 2)
-                            self.vis_img = cv2.drawMarker(self.vis_img, (int(track_info[-1,0,0]),int(track_info[-1,0,1])), m_col, 0, 50, 5)
-            
-            if self.gen:
-                windowText = "loc: {}, time: {}".format(self.loc, tags_)
-                # put coordinates as text on the image
-                cv2.putText(self.vis_img, windowText,(100, 100), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 255), 5)
-                cv2.imshow("window",cv2.resize(self.vis_img, (1024,1024)))
-                self.out_process.write(self.vis_img)
-                
-                self.kk = cv2.waitKey(1)
-                if self.kk == 113: #Exit 
-                    break
 
     def save_protrusion(self):
 
-        df_ids = pd.read_csv("./dataStore/Exp_design_2.csv")
-        save_path = os.path.join(self.results, "data_vector_results.csv")
-
+        df_ids = pd.read_csv("./dataStore/ExpDesign2_.csv")
+        self.df_tot_prot  = []
         for label_info, sub_data in self.df_vector.groupby(["cell_id", "location"]):
 
-            df_info = df_ids[(df_ids["day"] == int(self.day))& (df_ids["location"] == label_info[1]) ]#.reset_index(drop=True) #& (df_ids["location"] == i)
+            loc = int(label_info[1])
+            id = int(label_info[0])
+
+            df_info = df_ids[(df_ids["day"] == int(self.day))& (df_ids["location"] == loc) ]#.reset_index(drop=True) #& (df_ids["location"] == i)
 
             if df_info.shape[0] == 0:
-                print("did not find day, loc", int(self.day), self.loc)
-                continue
+                print("did not find day, loc", int(self.day), ",from location ",loc)
+                exit()
                 
             sub_data = sub_data.reset_index(drop = True)
             sub_data = sub_data.iloc[sub_data['lenght'].idxmax()]
-
-            if sub_data.to_frame().T.shape[0] > 1:
-                print("multiple rows from sub", sub_data.to_frame().T)
-                exit(0)
+            sub_data = sub_data.to_frame().T
             
             sub_data["day"] = self.day
+
             sub_data["ID_running"] = df_info["ID_running"].values[0]
             sub_data["time"] = int(sub_data["time"])*self.own_meta["dt"]/60**2+self.own_meta["incubation_time"]
             sub_data["cell_label"] = df_info['cell_label'].values[0]
             sub_data["well_id"] = df_info['well_id'].values[0]
             sub_data["measurement_id"] = df_info['measurement_id'].values[0]
             sub_data["matrix"] = df_info['matrix'].values[0]
-            sub_data["protrusion_ID"] = label_info[0]
+            sub_data["protrusion_ID"] = id
 
-            if len(self.df_tot_prot) != 0 :
-                self.df_tot_prot = pd.concat((self.df_tot_prot, sub_data.to_frame().T))
-            else:
-                self.df_tot_prot = sub_data.to_frame().T
+            self.df_tot_prot.append(self.df_tot_prot)
 
+        save_path = os.path.join(self.results, "data_vector_results.csv")
         self.df_tot_prot.to_csv(save_path, index = False)
 
 
 
     def save_single(self):
+        
         #self.longestTrack = np.max([np.max(i.indices) for i in self.pickleData.trackers])
         #df["time"] = np.arange(self.longestTrack)
-        df_ids = pd.read_csv("./dataStore/Exp_design_2.csv")
 
-        save_path = os.path.join(self.results, "data_tracks_results.csv")
-        print("Saving to location", save_path)
+        df_ids = pd.read_csv("./dataStore/ExpDesign2_.csv")
 
         for i in np.arange(len(self.tracker.trackers)):
 
-            df_info = df_ids[(df_ids["day"] == int(self.day)) & (df_ids["location"] == self.loc)]#.reset_index(drop=True) #& (df_ids["location"] == i)
+            df_info = df_ids[(df_ids["day"] == int(self.day)) & (df_ids["location"] == self.loc)]
 
             if df_info.shape[0] == 0:
                 print("did not find day, loc", int(self.day), self.loc)
-                continue
+                exit()
 
-            #print(df_info)
             df = pd.DataFrame() #data=None, columns=["day", "location", "time", "x", "y", "z", "location"]
 
             #pick stamps of detections and coordinates
@@ -291,12 +302,7 @@ class track_main():
             df["measurement_id"] = df_info['measurement_id'].values[0]
             df["matrix"] = df_info['matrix'].values[0]
 
-            if len(self.df_tot_single) != 0 :
-                self.df_tot_single = pd.concat((self.df_tot_single, df))
-            else:
-                self.df_tot_single = df
-        
-        self.df_tot_single.to_csv(save_path, index = False)
+            self.df_tot_single.append(df)
 
 if __name__ == "__main__":
         

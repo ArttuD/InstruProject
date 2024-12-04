@@ -26,10 +26,11 @@ class Manager():
         self.prev_dict = {}
 
         self.t_skip = 5
+        
         with open('./dataStore/metalib.json', 'r') as f:
             self.own_meta = json.load(f)[day]
 
-        self.focus_path = glob.glob(os.path.join(self.results, "corrected_*.pkl"))
+        self.focus_path = glob.glob(os.path.join(self.results, "corrected_*.pkl")) #""
 
         with open(self.focus_path[0], 'rb') as f:
             self.focus_dict = pickle.load(f)
@@ -48,6 +49,7 @@ class Manager():
             print("Starting a new set")
 
     def check_logged(self):
+
         log_files = glob.glob(os.path.join(self.results, "data_vector.csv"))
 
         if len(log_files) == 0:
@@ -101,6 +103,7 @@ class Manager():
                         self.object_num = 0
 
                     print("Did not find match: ", self.object_num, " with ", self.data_dict.keys())
+
                     self.data_dict[self.object_num] = self.create_dict()
                     self.data_dict[self.object_num]["cell_id"] = self.object_num
                     self.data_dict[self.object_num]["x"] = int(x*self.converter)
@@ -275,31 +278,36 @@ class Manager():
         cv2.setMouseCallback('window', self.click_event)
 
         with ND2Reader(self.path) as images:
-            self.metas = load_metadata(images)
 
-            for d in range(len(self.metas["channels"])):
-                if self.metas["channels"][d] == 'BF':
-                    self.idx_bf = d
-                elif self.metas["channels"][d] == 'Red':
-                    self.idx_fl = d
-
+            #self.metas = load_metadata(images)
+            #for d in range(len(self.metas["channels"])):
+            #    if self.metas["channels"][d] == 'BF':
+            #        self.idx_bf = d
+            #    elif self.metas["channels"][d] == 'Red':
+            #        self.idx_fl = d
+            self.idx_bf = 0
+            self.idx_fl = 0
+            self.metas = { "n_fields": 7, "n_frames": 25, "n_levels": 27}
 
             for v in range(self.v_init, self.metas["n_fields"]):
 
-                print("Processing location: ", v, "/", self.metas["n_fields"]-1)
+                #print("Processing location: ", v, "/", self.metas["n_fields"]-1)
 
                 if self.v_init == v:
-                    self.t = self.t_init
+                    self.t = int(self.t_init)
                 else: 
                     self.t = 0
 
-                self.v = v
+                self.v = int(v)
+                self.t = int(self.t)
 
                 if (v in self.own_meta["ignore"]) | (v in self.own_meta["multi"]):
                     print("Location: ", v, " is on ignore or multi list")          
                     continue
 
                 choosing_flag = True
+                print("fetching: ", self.v, " / ", self.t)
+
                 if self.v not in self.focus_dict.keys():
                     print("Location missing form the focus dict: v= ", self.v, ", file: ", os.path.split(self.path))
                     continue
@@ -404,7 +412,8 @@ class Manager():
                 self.prev_dict = {}
 
     def f_img(self, img_env):
-        img_bf = img_env.get_frame_2D(c=self.idx_bf, t=self.t_start, z=self.z_start , x=0, y=0, v=self.v_start)
+        print("fetching img: ", self.v_start, " / ", self.t_start)
+        img_bf = img_env.get_frame_2D(c=int(self.idx_bf), t=int(self.t_start), z=int(self.z_start) , x=0, y=0, v=int(self.v_start))
         
         img_bf = (img_bf/(np.max(img_bf))*2**8).astype("uint8")
         img_bf = np.stack((img_bf, img_bf, img_bf), axis = -1)
