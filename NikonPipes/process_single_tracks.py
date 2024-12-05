@@ -140,14 +140,10 @@ class track_main():
             cv2.namedWindow('window')
 
         for counter, file_path in enumerate(self.target_paths):
-
+            print("processing: ", file_path, "\n Done: ", counter, len(self.target_paths)-1)
             vector_file = os.path.join(os.path.split(file_path)[0], "data_vector.csv")
 
-            try:
-                self.df_vector = pd.read_csv(vector_file)
-            except:
-                print("Did not find protrusions from: ", file_path, ", quiting...")
-                exit()
+            self.df_vector = pd.read_csv(vector_file)
 
             self.parts = os.path.split(os.path.split(file_path)[0])[1].split("_")
             self.day = self.parts[1]
@@ -188,8 +184,8 @@ class track_main():
 
             df = pd.read_csv(file_path) 
 
-            self.df_tot_single = pd.DataFrame()
-            self.df_tot_prot = pd.DataFrame()
+            self.df_tot_single = []#pd.DataFrame()
+            self.df_tot_prot = []#pd.DataFrame()
 
             for tags, data_location in df.groupby(["location"]):
 
@@ -221,9 +217,9 @@ class track_main():
 
                 self.save_single()
 
-            self.df_tot_single = pd.concat(self.df_tot_single)
+            self.df_tot_single_ = pd.concat(self.df_tot_single)
             save_path = os.path.join(self.results, "data_tracks_results.csv")
-            self.df_tot_single.to_csv(save_path, index = False)
+            self.df_tot_single_.to_csv(save_path, index = False)
             
             self.save_protrusion()
 
@@ -232,17 +228,17 @@ class track_main():
     def save_protrusion(self):
 
         df_ids = pd.read_csv("./dataStore/ExpDesign2_.csv")
-        self.df_tot_prot  = []
+        #self.df_tot_prot  = []
         for label_info, sub_data in self.df_vector.groupby(["cell_id", "location"]):
 
             loc = int(label_info[1])
             id = int(label_info[0])
 
-            df_info = df_ids[(df_ids["day"] == int(self.day))& (df_ids["location"] == loc) ]#.reset_index(drop=True) #& (df_ids["location"] == i)
+            df_info = df_ids[(df_ids["day"] == int(self.day))& (df_ids["location"] == int(loc)) ]#.reset_index(drop=True) #& (df_ids["location"] == i)
 
             if df_info.shape[0] == 0:
-                print("did not find day, loc", int(self.day), ",from location ",loc)
-                exit()
+                print("saving, did not find location from, loc", int(self.day), ",from location ",loc)
+                continue
                 
             sub_data = sub_data.reset_index(drop = True)
             sub_data = sub_data.iloc[sub_data['lenght'].idxmax()]
@@ -258,10 +254,12 @@ class track_main():
             sub_data["matrix"] = df_info['matrix'].values[0]
             sub_data["protrusion_ID"] = id
 
-            self.df_tot_prot.append(self.df_tot_prot)
+            self.df_tot_prot.append(sub_data)
 
-        save_path = os.path.join(self.results, "data_vector_results.csv")
-        self.df_tot_prot.to_csv(save_path, index = False)
+        if len(self.df_tot_prot):
+            self.df_tot_prot_ = pd.concat(self.df_tot_prot)
+            save_path = os.path.join(self.results, "data_vector_results.csv")
+            self.df_tot_prot_.to_csv(save_path, index = False)
 
 
 
@@ -274,11 +272,11 @@ class track_main():
 
         for i in np.arange(len(self.tracker.trackers)):
 
-            df_info = df_ids[(df_ids["day"] == int(self.day)) & (df_ids["location"] == self.loc)]
+            df_info = df_ids[(df_ids["day"] == int(self.day)) & (df_ids["location"] == int(self.loc))]
 
             if df_info.shape[0] == 0:
-                print("did not find day, loc", int(self.day), self.loc)
-                exit()
+                print("save single, did not find location, loc", int(self.day), self.loc)
+                break
 
             df = pd.DataFrame() #data=None, columns=["day", "location", "time", "x", "y", "z", "location"]
 

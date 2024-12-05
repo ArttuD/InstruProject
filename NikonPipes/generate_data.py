@@ -133,6 +133,9 @@ class Collect_Data():
                     day_probe[-2] = str(int(day_probe[-2])-1)
 
                 day_probe = "".join(day_probe)
+                if day_probe == "240521":
+                    day_probe = "240522"
+
                 parts_ = day_probe + "*.nd2"
                 parts_ = "".join(parts_)
 
@@ -170,7 +173,7 @@ class Collect_Data():
 
                         if search == 3:
                             print("Measurement set done. Combined: ", df["day"].unique())
-                            search = 1                      
+                            search = 0                      
                 else:
                     found_flag = False
                     search += 1
@@ -178,7 +181,7 @@ class Collect_Data():
 
                     if search == 3:
                         print("Measurement set done. Combined: ", df["day"].unique())
-                        search = 1
+                        search = 0
 
             if df.shape == init_length:
                 df["well_id"] = np.arange(init_length)
@@ -364,7 +367,7 @@ class Collect_Data():
             df_temp.loc[df_temp["matrix"] == "coll", "matrix"] = "collagen"
             df_temp.loc[df_temp["matrix"] == "2mgml", "matrix"] = "collagen"
 
-            df_temp.to_csv('./dataStore/ExpDesign2_.csv') 
+            df_temp.to_csv('./dataStore/ExpDesign2_.csv', index=False) 
             with open("./dataStore/ExpDesig2ID_.pkl", 'wb') as f:
                 pickle.dump(contours_dict, f)
             
@@ -382,7 +385,7 @@ class Collect_Data():
         df_all.loc[df_all["matrix"] == "coll", "matrix"] = "collagen"
         df_all.loc[df_all["matrix"] == "2mgml", "matrix"] = "collagen"
 
-        df_all.to_csv('./dataStore/ExpDesign2_.csv') 
+        df_all.to_csv('./dataStore/ExpDesign2_.csv', index=False) 
         with open("./dataStore/ExpDesig2ID_.pkl", 'wb') as f:
             pickle.dump(contours_dict, f)
 
@@ -390,9 +393,9 @@ class Collect_Data():
         
     def save(self):
     
-        self.spheroid_info.to_csv('./dataStore/ExpDesign2_.csv')  
-        self.single_info.to_csv('./dataStore/ExpDesign2_single_.csv')  
-        self.vector_info.to_csv('./dataStore/ExpDesign2_vector_.csv')   
+        self.spheroid_info.to_csv('./dataStore/ExpDesign2_.csv', index=False)  
+        self.single_info.to_csv('./dataStore/ExpDesign2_single_.csv', index=False)  
+        self.vector_info.to_csv('./dataStore/ExpDesign2_vector_.csv', index=False)   
 
         with open("./dataStore/ExpDesig2ID_.pkl", 'wb') as f:
             pickle.dump(self.cntDict, f)
@@ -413,7 +416,7 @@ class Collect_Data():
                 df_sp.append(self.parse_single(data))
 
             print("Cells processed: ",global_counter,"/",len(self.paths_single_track)-1)
-            pd.concat(df_sp).to_csv('./dataStore/ExpDesign2_single_.csv')  
+            pd.concat(df_sp).to_csv('./dataStore/ExpDesign2_single_.csv', index=False)  
 
         df = pd.concat(df_sp)
 
@@ -561,7 +564,7 @@ class Collect_Data():
                 df_vector.append(self.parse_vector(data))
 
             print("Cells processed: ",global_counter,"/",len(self.paths_single_vector)-1)
-            pd.concat(df_vector).to_csv('./dataStore/ExpDesign2_vector_.csv')  
+            pd.concat(df_vector).to_csv('./dataStore/ExpDesign2_vector_.csv', index=False)  
 
         df_vector = pd.concat(df_vector)
 
