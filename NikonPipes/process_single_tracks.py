@@ -8,7 +8,7 @@ import cv2
 import pickle
 from nd2reader import ND2Reader
 
-from tools.MTT.track_manager import TrackManager
+from tools.MTT_o.track_manager import TrackManager
 #from tools.cMTT.track_manager import TrackManager
 from tools.func import *
 
@@ -31,7 +31,8 @@ class track_main():
 
     def init_tracker(self):
         #self.tracker = TrackManager(min_count=5, max_count = 6, gating = 500)
-        self.tracker  = TrackManager(min_count=5,max_count=6, gating = 150, gating_= 200)
+        self.tracker  = TrackManager(min_count=5,max_count=6, gating_spawn = 150, gating_far= 100)
+            
 
     def find_paths(self):
         paths_single_track = glob.glob("D:/instru_projects/TimeLapses/u-wells/*/*/data_track.csv") 
@@ -98,7 +99,7 @@ class track_main():
 
 
             dets = data_stamp[["x", "y", "z", "labels", "dummy"]].values
-            self.tracker.update(dets, tags_, np.zeros(data_stamp.shape[0])) 
+            self.tracker.update(dets, tags_) 
 
             all_tracks = self.tracker.trackers
 
@@ -140,7 +141,9 @@ class track_main():
             cv2.namedWindow('window')
 
         for counter, file_path in enumerate(self.target_paths):
+
             print("processing: ", file_path, "\n Done: ", counter, len(self.target_paths)-1)
+            
             vector_file = os.path.join(os.path.split(file_path)[0], "data_vector.csv")
 
             self.df_vector = pd.read_csv(vector_file)
@@ -217,9 +220,11 @@ class track_main():
 
                 self.save_single()
 
-            self.df_tot_single_ = pd.concat(self.df_tot_single)
-            save_path = os.path.join(self.results, "data_tracks_results.csv")
-            self.df_tot_single_.to_csv(save_path, index = False)
+            if self.df_tot_single:
+
+                self.df_tot_single_ = pd.concat(self.df_tot_single)
+                save_path = os.path.join(self.results, "data_tracks_results.csv")
+                self.df_tot_single_.to_csv(save_path, index = False)
             
             self.save_protrusion()
 
@@ -241,7 +246,11 @@ class track_main():
                 continue
                 
             sub_data = sub_data.reset_index(drop = True)
-            sub_data = sub_data.iloc[sub_data['lenght'].idxmax()]
+            try:
+                sub_data = sub_data.iloc[sub_data['lenght'].idxmax()]
+            except:
+                sub_data = sub_data.iloc[sub_data['length'].idxmax()]
+                
             sub_data = sub_data.to_frame().T
             
             sub_data["day"] = self.day
@@ -270,37 +279,41 @@ class track_main():
 
         df_ids = pd.read_csv("./dataStore/ExpDesign2_.csv")
 
-        for i in np.arange(len(self.tracker.trackers)):
+        df_info = df_ids[(df_ids["day"] == int(self.day)) & (df_ids["location"] == int(self.loc))]
+        if df_info.shape[0] == 0:
+            print("save single, did not find location, loc", int(self.day), self.loc)
+        else:
+            for i in np.arange(len(self.tracker.trackers_all)):
 
-            df_info = df_ids[(df_ids["day"] == int(self.day)) & (df_ids["location"] == int(self.loc))]
+                if 1 not in self.tracker.trackers_all[i].status:
+                    #print("No confirmed detections from the targer", int(self.day), "/",self.loc, "/",i)
+                    #print(self.tracker.trackers_all[i].status)
+                    continue
 
-            if df_info.shape[0] == 0:
-                print("save single, did not find location, loc", int(self.day), self.loc)
-                break
+                df = pd.DataFrame() #data=None, columns=["day", "location", "time", "x", "y", "z", "location"]
 
-            df = pd.DataFrame() #data=None, columns=["day", "location", "time", "x", "y", "z", "location"]
+                #pick stamps of detections and coordinates
 
-            #pick stamps of detections and coordinates
-            self.dispData = np.array(self.tracker.trackers[i].history)
-            self.time = np.array(self.tracker.trackers[i].indices)
+                self.dispData = np.array(self.tracker.trackers_all[i].history)
+                self.time = np.array(self.tracker.trackers_all[i].indices)
 
-            df["x"]= self.dispData[:,0]*self.pixel_size
-            df["y"]= self.dispData[:,1]*self.pixel_size
-            df["z"]= self.dispData[:,2]*self.z_step
+                df["x"]= self.dispData[:,0]*self.pixel_size
+                df["y"]= self.dispData[:,1]*self.pixel_size
+                df["z"]= self.dispData[:,2]*self.z_step
 
-            df["time"] = self.time*self.own_meta["dt"]/60**2+self.own_meta["incubation_time"]
-            df["location"] = self.loc
-            df["day"] = self.day
-            df["track_label"] = self.track_ID
-            self.track_ID += 1
-            
-            df["ID_running"] = df_info["ID_running"].values[0]
-            df["cell_label"] = df_info['cell_label'].values[0]
-            df["well_id"] = df_info['well_id'].values[0]
-            df["measurement_id"] = df_info['measurement_id'].values[0]
-            df["matrix"] = df_info['matrix'].values[0]
+                df["time"] = self.time*self.own_meta["dt"]/60**2+self.own_meta["incubation_time"]
+                df["location"] = self.loc
+                df["day"] = self.day
+                df["track_label"] = self.track_ID
+                self.track_ID += 1
+                
+                df["ID_running"] = df_info["ID_running"].values[0]
+                df["cell_label"] = df_info['cell_label'].values[0]
+                df["well_id"] = df_info['well_id'].values[0]
+                df["measurement_id"] = df_info['measurement_id'].values[0]
+                df["matrix"] = df_info['matrix'].values[0]
 
-            self.df_tot_single.append(df)
+                self.df_tot_single.append(df)
 
 if __name__ == "__main__":
         

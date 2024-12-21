@@ -279,15 +279,15 @@ class Manager():
 
         with ND2Reader(self.path) as images:
 
-            #self.metas = load_metadata(images)
-            #for d in range(len(self.metas["channels"])):
-            #    if self.metas["channels"][d] == 'BF':
-            #        self.idx_bf = d
-            #    elif self.metas["channels"][d] == 'Red':
-            #        self.idx_fl = d
-            self.idx_bf = 0
-            self.idx_fl = 0
-            self.metas = { "n_fields": 7, "n_frames": 25, "n_levels": 27}
+            self.metas = load_metadata(images)
+            for d in range(len(self.metas["channels"])):
+                if self.metas["channels"][d] == 'BF':
+                    self.idx_bf = d
+                elif self.metas["channels"][d] == 'Red':
+                    self.idx_fl = d
+            #self.idx_bf = 0
+            #self.idx_fl = 0
+            #self.metas = { "n_fields": 7, "n_frames": 25, "n_levels": 27}
 
             for v in range(self.v_init, self.metas["n_fields"]):
 
