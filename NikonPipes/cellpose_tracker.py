@@ -7,7 +7,7 @@ import cv2
 from tools.func import *
 from sklearn.cluster import DBSCAN
 from nd2reader import ND2Reader
-from tools.MTT.track_manager import TrackManager
+from tools.MTT_o.track_manager import TrackManager
 
 
 import argparse
@@ -284,20 +284,24 @@ class Tracker():
 
         self.result_path = result_path
         self.day = os.path.split(result_path)[1].split("_")[1]
-        self.df = pd.read_csv(self.result_path + '/data_tracks_results.csv')
+        self.df = pd.read_csv(self.result_path + '/data_track.csv')
         #self.df = self.df.drop(["Unnamed: 0"]).reset_index(drop=True)
 
     def pipe(self):
 
         for tags, data_location in self.df.groupby(["location"]):
-            self.tracker_obj = TrackManager(min_count=5,max_count=6,gating = 200, gating_= 500)
-
+            #self.tracker_obj = TrackManager(min_count=5,max_count=6, gating = 150, gating_= 100)
+            self.tracker_obj = TrackManager(min_count=5,max_count=6, gating_spawn = 150, gating_far= 100)
+            
             data_location = data_location.reset_index(drop = True)
             tags = tags[0]
 
             v = int(tags)
-            print(self.result_path + '/detector_{}_{}.mp4'.format( self.day, v ) )
-            out_name = self.result_path + '/detector_{}_{}.mp4'.format( self.day, v ) 
+            path_in_ = os.path.join(self.result_path, os.path.split(self.result_path)[1][8:])
+            path_in_ = path_in_ + '_{}_*.mp4'.format(int(v))
+            paths_ = glob(path_in_, recursive=True)
+
+            out_name = paths_[0] #self.result_path + '/{}_timelapse_IPN3mM_3lines_48h_comments_{}_*.mp4'.format( self.day, v ) 
 
             rec_count = 0
             cap = cv2.VideoCapture(out_name)
@@ -319,10 +323,13 @@ class Tracker():
                 data_stamp = data_stamp.reset_index(drop = True)
                 data_stamp["labels"] = 1
                 data_stamp["dummy"] = 1
+
                 dets = data_stamp[["x", "y", "z", "labels", "dummy"]].values
-                self.tracker_obj.update(dets, tags_, np.zeros(data_stamp.shape[0])) 
+                self.tracker_obj.update(dets, tags_) 
+
                 img = self.draw_tracks(self.tracker_obj.trackers, frames[-1])
-                frames[-1] = img 
+                frames[-1] = img
+
 
 
                 #plt.imshow( frames[-1])
@@ -385,5 +392,10 @@ if __name__ == "__main__":
 
     process = manager(args)
     success = process.pipe()
+
+    #tr = Tracker(args.path)
+    #print("inititated")
+    #tr.pipe()
+
     print("Done")
     exit()

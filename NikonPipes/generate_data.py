@@ -43,7 +43,16 @@ class Collect_Data():
     
         self.cnt_limit = 6
         self.meta_columns = ["seeding_density", "cell_label", "well_id", "measurement_id", "matrix", "ID", "day"]
-        #Collect dat from all drives
+
+        with open('./dataStore/metalib.json', 'r') as f:
+            self.own_meta = json.load(f)
+
+        self.collect_folders()
+
+
+
+    def collect_folders(self):
+
         self.target_paths = glob.glob("D:/instru_projects/TimeLapses/u-wells/*/*.nd2") 
         self.target_paths += glob.glob("F:/instru_projects/TimeLapses/u-wells/*/*.nd2")
         self.target_paths += glob.glob("G:/instru_projects/TimeLapses/u-wells/*/*.nd2") 
@@ -68,34 +77,36 @@ class Collect_Data():
         self.paths_single_vector += glob.glob("I:/instru_projects/TimeLapses/u-wells/*/*/data_vector_results.csv")
         self.paths_single_vector += glob.glob("J:/instru_projects/TimeLapses/u-wells/*/*/data_vector_results.csv")
 
-        with open('./dataStore/metalib.json', 'r') as f:
-            self.own_meta = json.load(f)
-
     def worker(self):
+        pass
+        #self.matched_measurements = self.match_mesurements()
+        #self.spheroid_info, self.cntDict  = self.parse_spheroids()
 
-        self.matched_measurements = self.match_mesurements()
-        self.spheroid_info, self.cntDict  = self.parse_spheroids()
+    def generate_plots(self):
+
+        self.spheroid_info = pd.read_csv('./dataStore/ExpDesign2_.csv')  
+        with open(r"./dataStore/ExpDesig2ID_.pkl", "rb") as input_file:
+            self.cntDict = pickle.load(input_file)
+
         self.single_info = self.parse_single_tracks()
-        self.vector_info = self.parse_vector()
+        self.vector_info = self.process_vector()
 
 
     def match_mesurements(self):
 
-        processed_list = []
-        meas_run = 0
         df_tot = []
+        processed_list = []
+
+        meas_run = 0
 
         for video_path in self.target_paths:
 
-            
             if video_path in processed_list:
                 continue
+
             parts = os.path.split(video_path)[-1].split("_")
-
-            video_name = os.path.split(video_path)[-1][:-4]
-            results = os.path.join(os.path.split(video_path)[0], "results_{}".format(video_name))
-
             day = str(parts[0])
+
             coord_list_x, coord_list_y, coord_list_z = self.fetch_coords_well(video_path)
 
             df = pd.DataFrame(np.stack((coord_list_x, coord_list_y, coord_list_z), axis = -1), columns = ["x", "y", "z"])
@@ -105,11 +116,11 @@ class Collect_Data():
             df["well_order"] = np.arange(df.shape[0])
 
             search = 1
-            last_let = 0
+            last_let = -100
 
             while search>0:
 
-                if last_let == 0:
+                if last_let == -100:
                     last_let = int(day[-1])
 
                 if search == 1:
@@ -118,13 +129,23 @@ class Collect_Data():
                     last_let+=1
                     
                 day_probe = list(day)
-                day_probe[-1] = str(last_let)
+                if last_let != -1:
+                    day_probe[-1] = str(last_let)
+                else:
+                    day_probe[-1] = str(9)
+                    day_probe[-2] = str(int(day_probe[-2])-1)
+
                 day_probe = "".join(day_probe)
+                if day_probe == "240521":
+                    day_probe = "240522"
+
                 parts_ = day_probe + "*.nd2"
                 parts_ = "".join(parts_)
 
                 found_flag = False
-                for letter in ["F", "G", "D", "G", "E", "H", "I", "J"] :#
+
+                #What if 
+                for letter in ["F", "G", "D", "E", "H", "I", "J"] :#
 
                     probe_path = os.path.join(os.path.split(video_path)[0], parts_)
                     probe_path = list(probe_path)
@@ -136,44 +157,51 @@ class Collect_Data():
                         found_flag = True
                         break
 
-                if found_flag:
-                    print("adding:", found_paths[0])
-                    coord_list_x_, coord_list_y_, coord_list_z_ = self.fetch_coords_well(found_paths[0])
+                if (found_flag):
+                    if (found_paths[0] not in processed_list):
+                        #print("Found potential path:", found_paths)
+                        coord_list_x_, coord_list_y_, coord_list_z_ = self.fetch_coords_well(found_paths[0])
 
-                    df_ = pd.DataFrame(np.stack((coord_list_x_, coord_list_y_, coord_list_z_), axis = -1), columns = ["x", "y", "z"])
-                    df_["day"] = day_probe
-                    df_["well_order"] = np.arange(df_.shape[0])
-                    df = pd.concat((df,df_)).reset_index(drop=True)
+                        df_ = pd.DataFrame(np.stack((coord_list_x_, coord_list_y_, coord_list_z_), axis = -1), columns = ["x", "y", "z"])
+                        df_["day"] = day_probe
+                        df_["well_order"] = np.arange(df_.shape[0])
+                        df = pd.concat((df,df_)).reset_index(drop=True)
 
-                    processed_list.append(found_paths[0])
+                        processed_list.append(found_paths[0])
+                        found_flag = False
+                    else:
+                        found_flag = False
+                        search += 1
+                        last_let = -100
+
+                        if search == 3:
+                            print("Measurement set done. Combined: ", df["day"].unique())
+                            search = 0                      
                 else:
+                    found_flag = False
                     search += 1
-                    last_let = 0
+                    last_let = -100
 
                     if search == 3:
-                        print("Measurement set done, clustering and moving on")
+                        print("Measurement set done. Combined: ", df["day"].unique())
                         search = 0
 
             if df.shape == init_length:
                 df["well_id"] = np.arange(init_length)
                 df["measurement_id"] = meas_run
             else: 
-                clustering = DBSCAN(eps=1400, min_samples=1).fit(df[["x", "y"]].values)
+                clustering = DBSCAN(eps=1000, min_samples=1).fit(df[["x", "y"]].values)
                 df["well_id"] = clustering.labels_
                 df["measurement_id"] = meas_run
 
-            fig = px.scatter_3d(df, x='x', y='y', z='z',
-                        color='well_id')
-            
+            #fig = px.scatter_3d(df, x='x', y='y', z='z', color='well_id')
             #plotly.offline.plot(fig, filename=os.path.join('./dataStore', "mathced_{}.html".format(meas_run)))
             #fig.close()
 
             meas_run += 1
+            df_tot.append(df)
 
-            if len(df_tot) == 0:
-                df_tot = df
-            else:
-                df_tot = pd.concat((df_tot,df))
+        df_tot = pd.concat(df_tot)
 
         return df_tot
 
@@ -225,6 +253,8 @@ class Collect_Data():
 
         for global_counter, video_path in enumerate(self.target_paths):
 
+            print("Processing: ", global_counter, "/", len(self.target_paths))
+
             video_name = os.path.split(video_path)[-1][:-4]
             results = os.path.join(os.path.split(video_path)[0], "results_{}".format(video_name))
             pickel_path = os.path.join(results,"{}_corrected_detections.pkl".format(video_name))
@@ -234,23 +264,19 @@ class Collect_Data():
                 pickel_path = os.path.join(results, "{}_detections.pkl".format(video_name))
 
             if os.path.isfile(pickel_path):
-                print(pickel_path)
                 with open(pickel_path, 'rb') as f:
                     total_dict = pickle.load(f)
-            else:
-                print("No corrocted pickle found from", results)
-                continue
 
             parts = os.path.split(video_path)[-1].split("_")
             day = str(parts[0])
 
             if day not in self.own_meta.keys():
                 print("passing day {}, form file {} because not recorded in metadata.json".format(day, video_path))
-                continue
+                exit()
 
             if "m" not in self.own_meta[day].keys():
                 print("Missing pixel size from ", video_path)
-                continue
+                exit()
 
             focus_path = glob.glob(os.path.join(results, "corrected_focus_indixes.pkl")) #*_indixes.pkl
 
@@ -259,19 +285,18 @@ class Collect_Data():
                 focus_path = glob.glob(os.path.join(results, "focus_indixes.pkl"))
 
             with open(focus_path[0], 'rb') as f:
-                focus_dict = pickle.load(f)   
-            
-            count_flag = 0
+                focus_dict = pickle.load(f)
 
             for counter, current_key in enumerate(total_dict.keys()):
 
                 if len(total_dict[current_key]["mask"]) < self.cnt_limit:
+                    print("Day {} location {} too short, only {} frames".format(day, current_key, len(total_dict[current_key]["mask"])))
                     continue
 
                 loc_ = int(current_key.split("_")[1])
 
                 if (loc_ in self.own_meta[day]["ignore"]) | (loc_ in self.own_meta[day]["multi"]):
-                    print("skipping bcs set ignore or multiple targers", day, loc_)
+                    print("Skipping {}, loc {} bcs set ignore or multiple: ".format(day, loc_))
                     continue
 
                 contours_dict[total_ID] = {} 
@@ -285,10 +310,8 @@ class Collect_Data():
                 for n in range(len(total_dict[current_key]['mask'])):
 
                     idx = int(focus_dict[loc_][n])
-                    if idx == -1:
-                        break
-
-                    if idx == -2:
+                    if (idx == -1) | (idx == -2):
+                        print("Overgrown or drifted, moving to next")
                         break
 
                     cnt = total_dict[current_key]['mask'][n][total_dict[current_key]["big_idx"][n]]
@@ -306,20 +329,19 @@ class Collect_Data():
 
                 
                 df_temp = pd.DataFrame(np.zeros((1,len(self.meta_columns))), columns=self.meta_columns)
+                cell_data = self.own_meta[day]["cell"][loc_]
+                
+                if isinstance(cell_data, list) and len(cell_data) == 2:
+                    df_temp["cell_label"] = str(cell_data[0])  # cell_index1 -> cell_label
+                    df_temp["matrix"] = str(cell_data[1])      # cell_index2 -> matrix
+                else:
+                    df_temp["cell_label"] = str(self.own_meta[day]["cell"][loc_])
+                    df_temp["matrix"] = str(self.own_meta[day]["matrix"])
 
-                if len( self.own_meta[day]["cell"]) > loc_:
-                    cell_data = self.own_meta[day]["cell"][loc_]
-                    
-                    if isinstance(cell_data, list) and len(cell_data) == 2:
-                        df_temp["cell_label"] = str(cell_data[0])  # cell_index1 -> cell_label
-                        df_temp["matrix"] = str(cell_data[1])      # cell_index2 -> matrix
-                    else:
-                        df_temp["cell_label"] = str(self.own_meta[day]["cell"][loc_])
-                        df_temp["matrix"] = str(self.own_meta[day]["matrix"])
+                df_temp["seeding_density"] = int(self.own_meta[day]["seeding_density"][loc_])
+                df_temp["well_id"] = self.matched_measurements[(self.matched_measurements["day"] == day) & (self.matched_measurements["well_order"] == loc_ )]["well_id"].values[0]
+                df_temp["measurement_id"] = self.matched_measurements[(self.matched_measurements["day"] == day) & (self.matched_measurements["well_order"] == loc_)]["measurement_id"].values[0]
 
-                    df_temp["seeding_density"] = int(self.own_meta[day]["seeding_density"][loc_])
-                    df_temp["well_id"] = self.matched_measurements[(self.matched_measurements["day"] == day) & (self.matched_measurements["well_order"] == loc_ )]["well_id"].values[0]
-                    df_temp["measurement_id"] = self.matched_measurements[(self.matched_measurements["day"] == day) & (self.matched_measurements["well_order"] == loc_)]["measurement_id"].values[0]
 
                 df_temp["ID_running"] = total_ID
                 df_temp["day"] = day
@@ -333,38 +355,72 @@ class Collect_Data():
                     pass
                 else:
                     df_lists.append(df_temp)
+
+            df_temp = pd.concat(df_lists)
+
+            df_temp.loc[df_temp["cell_label"] == "T", "cell_label"] = "MCF10AT"
+            df_temp.loc[df_temp["cell_label"] == "MFC10AT", "cell_label"] = "MCF10AT"
+            df_temp.loc[df_temp["cell_label"] == "MCFA10A", "cell_label"] = "MCF10A"
+            df_temp.loc[df_temp["cell_label"] == "MCFA10", "cell_label"] = "MCF10A"
+            df_temp.loc[df_temp["cell_label"] == "DCIS", "cell_label"] = "DCIS.COM"
+            df_temp.loc[df_temp["cell_label"] == "DCIS.COM", "cell_label"] = "MCF10DCIS.com"
+            df_temp.loc[df_temp["matrix"] == "IPN3", "matrix"] = "IPN3mM"
+            df_temp.loc[df_temp["matrix"] == "IPN22", "matrix"] = "IPN22mM"
+            df_temp.loc[df_temp["matrix"] == "22mM", "matrix"] = "IPN22mM"
+            df_temp.loc[df_temp["matrix"] == "coll", "matrix"] = "collagen"
+            df_temp.loc[df_temp["matrix"] == "2mgml", "matrix"] = "collagen"
+
+            df_temp.to_csv('./dataStore/ExpDesign2_.csv', index=False) 
+            with open("./dataStore/ExpDesig2ID_.pkl", 'wb') as f:
+                pickle.dump(contours_dict, f)
             
-        df_all = pd.concat(df_temp)
+        df_all = pd.concat(df_lists)
 
         df_all.loc[df_all["cell_label"] == "T", "cell_label"] = "MCF10AT"
         df_all.loc[df_all["cell_label"] == "MFC10AT", "cell_label"] = "MCF10AT"
         df_all.loc[df_all["cell_label"] == "MCFA10A", "cell_label"] = "MCF10A"
         df_all.loc[df_all["cell_label"] == "MCFA10", "cell_label"] = "MCF10A"
         df_all.loc[df_all["cell_label"] == "DCIS", "cell_label"] = "DCIS.COM"
+        df_all.loc[df_all["cell_label"] == "DCIS.COM", "cell_label"] = "MCF10DCIS.com"
+        df_all.loc[df_all["matrix"] == "IPN3", "matrix"] = "IPN3mM"
+        df_all.loc[df_all["matrix"] == "IPN22", "matrix"] = "IPN22mM"
+        df_all.loc[df_all["matrix"] == "22mM", "matrix"] = "IPN22mM"
+        df_all.loc[df_all["matrix"] == "coll", "matrix"] = "collagen"
+        df_all.loc[df_all["matrix"] == "2mgml", "matrix"] = "collagen"
+
+        df_all.to_csv('./dataStore/ExpDesign2_.csv', index=False) 
+        with open("./dataStore/ExpDesig2ID_.pkl", 'wb') as f:
+            pickle.dump(contours_dict, f)
 
         return df_all, contours_dict
         
     def save(self):
     
-        self.spheroid_info.to_csv('./dataStore/ExpDesign2_.csv')  
-        self.single_info.to_csv('./dataStore/ExpDesign2_single_.csv')  
-        self.vector_info.to_csv('./dataStore/ExpDesign2_vector_.csv')   
+        self.spheroid_info.to_csv('./dataStore/ExpDesign2_.csv', index=False)  
+        self.single_info.to_csv('./dataStore/ExpDesign2_single_.csv', index=False)  
+        self.vector_info.to_csv('./dataStore/ExpDesign2_vector_.csv', index=False)   
 
         with open("./dataStore/ExpDesig2ID_.pkl", 'wb') as f:
             pickle.dump(self.cntDict, f)
 
 
     def parse_single_tracks(self):
+
         df_sp = []
 
         #video_path = paths_single_track[0]
         for global_counter, video_path in enumerate(self.paths_single_track):
 
             df_single = pd.read_csv(video_path)
+
             for tags, data in df_single.groupby(["measurement_id","well_id"]):
-                data = data.reset_index()
+
+                data = data.reset_index(drop=True)
                 df_sp.append(self.parse_single(data))
-                
+
+            print("Cells processed: ",global_counter,"/",len(self.paths_single_track)-1)
+            pd.concat(df_sp).to_csv('./dataStore/ExpDesign2_single_2.csv', index=False)  
+
         df = pd.concat(df_sp)
 
         return df
@@ -393,12 +449,14 @@ class Collect_Data():
 
     def parse_cnt_dict(self, num_key):
 
-        
         #for count, ckey in enumerate(num_key):
 
-
         currentDict = self.cntDict[num_key]
-        del currentDict["masks"]
+
+        try:
+            del currentDict["masks"]
+        except:
+            pass
 
         df_spheroid = pd.DataFrame.from_dict(currentDict)
 
@@ -433,7 +491,7 @@ class Collect_Data():
 
         for tau in range(1, data.shape[0]):
 
-            MSD = self.calc_MSD_(data,data["time"].values, tau)
+            MSD = self.calc_MSD_(data ,data["time"].values , tau)
             data.loc[tau,"MSD_tau"] = MSD
             data.loc[tau,"t"] = np.mean(data["time"].values[::tau])
 
@@ -442,28 +500,31 @@ class Collect_Data():
             data["alpha"] = p[1]
             data["ampltiude"] = p[0]
         except:
-            data["alpha"] = 0#np.nan
-            data["ampltiude"] = 0#np.nan
+            data["alpha"] = 0 #np.nan
+            data["ampltiude"] = 0 #np.nan
 
         df = []
+
         for count, cluster in enumerate(data.groupby(["ID_running"])):
+
             single_tags = cluster[0]
             single_data = cluster[1]
 
-            single_data = single_data.reset_index()
-            single_tags = single_tags[0]
+            single_data = single_data.reset_index(drop=True)
+            single_tags = int(single_tags[0])
 
             spheroid_df = self.parse_cnt_dict(single_tags)
 
             if spheroid_df.shape[0] == 0:
-                print("No data recorded from spheroid spheroid in location", single_tags)
+                print("No data recorded from spheroid spheroid with running ID", single_tags)
                 continue
 
             idx = np.argmin(spheroid_df["time"].values - single_data["time"][0])
+            
             try:
                 sub_sub_df = spheroid_df[idx: (idx+single_data.shape[0])]
             except:
-                print("Cells tracked incorrectly, cannot fetch location", single_tags)
+                print("Cells tracked incorrectly, cannot fetch location: ", single_tags)
                 continue
 
             single_data["dx"] = 0; single_data["dy"] = 0; single_data["angle"] = 0
@@ -472,7 +533,7 @@ class Collect_Data():
             single_data.loc[1:, "dy"] = np.diff(single_data["y"])
 
             v1 = np.stack((single_data["dx"], single_data["dy"]), axis = -1)
-            v2 = np.stack((sub_sub_df["x"], sub_sub_df["y"]), axis = -1)
+            v2 = np.stack((sub_sub_df["x"]-single_data["x"], sub_sub_df["y"]-single_data["y"]), axis = -1)
 
             angles_ = np.empty(v2.shape[0])
             
@@ -484,6 +545,7 @@ class Collect_Data():
             single_data.loc[:(v2.shape[0]-1), "angle"] = deg_angles
             
             df.append(single_data)
+        
 
         df = pd.concat(df)
 
@@ -501,43 +563,47 @@ class Collect_Data():
 
             for tags, data in df_.groupby(["measurement_id","well_id"]):
 
-                data = data.reset_index()
+                data = data.reset_index(drop=True)
                 df_vector.append(self.parse_vector(data))
-                
+
+            print("Cells processed: ",global_counter,"/",len(self.paths_single_vector)-1)
+            pd.concat(df_vector).to_csv('./dataStore/ExpDesign2_vector_2.csv', index=False)  
+
         df_vector = pd.concat(df_vector)
 
 
     def parse_vector(self, data):
 
         df_all = []
+
         for count, cluster in enumerate(data.groupby(["ID_running"])):
 
             single_tags = cluster[0]
-            single_tags = single_tags[0]
+            single_tags = int(single_tags[0])
 
             single_data = cluster[1]
-            single_data = single_data.reset_index()
+            single_data = single_data.reset_index(drop=True)
+
+            single_data["rel_angle"] = 0
             
             spheroid_df = self.parse_cnt_dict(single_tags)
 
             if spheroid_df.shape[0] == 0:
-                print("No spheroid in location", single_tags)
+                print("No data recorded from spheroid spheroid with running ID", single_tags)
                 continue
-            else:
-                pass
-                #print("Found", single_tags, "size", spheroid_df.shape)
+
 
             spheroid_df["dx"] = 0; spheroid_df["dy"] = 0; single_data["angle"] = 0
-
             spheroid_df.loc[1:,"dx"] = filter_Gauss(np.diff(spheroid_df["x"]))
             spheroid_df.loc[1:, "dy"] = filter_Gauss(np.diff(spheroid_df["y"]))
 
             for k in range(single_data.shape[0]):
 
-                time = single_data["time"].values[k]
+                time = int(single_data["time"].values[k])
                 row = spheroid_df[spheroid_df["time"] == time]
+
                 if row.shape[0] == 0:
-                    print("time", time, "does not exist in spheroid frame, cannot calculate vector")
+                    print("Time", time, "does not exist in spheroid frame cannot match protrusion, moving on")
                     continue
 
                 v1 = np.stack((row["dx"].values[0], row["dy"].values[0]), axis = -1)
@@ -546,17 +612,18 @@ class Collect_Data():
 
                 deg_angles = np.rad2deg(angles_)
                 #deg_angles = deg_angles[~np.isnan(deg_angles)]
-                single_data.loc[k, "angle"] = deg_angles
+                single_data.loc[k, "rel_angle"] = deg_angles
 
-    
             df_all.append(single_data)
 
         df = pd.concat(df_all)
+        #print(df, spheroid_df)
 
         return df
 
 
 if __name__ == "__main__":
     host = Collect_Data()
-    host.worker()
-    host.save()
+    host.generate_plots()
+    #host.worker()
+    #host.save()
