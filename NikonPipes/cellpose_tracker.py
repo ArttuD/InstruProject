@@ -19,7 +19,7 @@ class manager():
         self.path = args.path
         self.track_flag = args.track
 
-        self.model_path = "C:/Users/lehto/git/InstruProject/NikonPipes/dataStore/img_store/models/model_final_arttu"
+        self.model_path = "./dataStore/img_store/models/model_final_arttu"
         self.meta_path = "./dataStore/metalib.json"
 
         vid_parts = os.path.split(self.path)
@@ -206,10 +206,10 @@ class detector():
     def __init__(self, model_path, channels):
 
         self.channels = channels
-        self.model = models.CellposeModel(gpu=True, pretrained_model=model_path)
+        self.model = models.CellposeModel(gpu=False, pretrained_model=model_path)
 
         self.diameter =  50#self.model.diam_labels
-        self.dn = denoise.DenoiseModel(gpu=True, model_type="deblur_cyto3",diam_mean=self.diameter)
+        self.dn = denoise.DenoiseModel(gpu=False, model_type="deblur_cyto3",diam_mean=self.diameter)
 
     def NormalizeData(self, data):
         return (data - np.min(data)) / (np.max(data) - np.min(data))

@@ -46,7 +46,7 @@ transformed parameters {
   vector[N] mu_sample = sigma_sample[type_ids].*z_samples[sample_ids];
   vector[N] mu_holder = sigma_holders[type_ids].*z_holders[holder_ids];
 
-  vector[N] mu_size = x_size.*alpha[type_ids] + beta[type_ids];
+  vector[N] mu_size = x_size.*alpha[type_ids];
 }
 model{
 
