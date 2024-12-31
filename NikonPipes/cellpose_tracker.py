@@ -206,10 +206,10 @@ class detector():
     def __init__(self, model_path, channels):
 
         self.channels = channels
-        self.model = models.CellposeModel(gpu=False, pretrained_model=model_path)
+        self.model = models.CellposeModel(gpu=True, pretrained_model=model_path)
 
         self.diameter =  45 #self.model.diam_labels
-        self.dn = denoise.DenoiseModel(gpu=False, model_type="deblur_cyto3",diam_mean=self.diameter)
+        self.dn = denoise.DenoiseModel(gpu=True, model_type="deblur_cyto3",diam_mean=self.diameter)
 
     def NormalizeData(self, data):
         return (data - np.min(data)) / (np.max(data) - np.min(data))
