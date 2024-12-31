@@ -19,7 +19,7 @@ class manager():
         self.path = args.path
         self.track_flag = args.track
 
-        self.model_path = "./dataStore/img_store/models/model_final_arttu"
+        self.model_path = "./dataStore/img_store/models/CellposeCustom25k"
         self.meta_path = "./dataStore/metalib.json"
 
         vid_parts = os.path.split(self.path)
@@ -208,7 +208,7 @@ class detector():
         self.channels = channels
         self.model = models.CellposeModel(gpu=False, pretrained_model=model_path)
 
-        self.diameter =  50#self.model.diam_labels
+        self.diameter =  45 #self.model.diam_labels
         self.dn = denoise.DenoiseModel(gpu=False, model_type="deblur_cyto3",diam_mean=self.diameter)
 
     def NormalizeData(self, data):
