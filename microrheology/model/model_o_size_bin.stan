@@ -24,7 +24,7 @@ parameters {
   vector<lower=0>[N_type] sigma;
   vector<lower=0>[N_type] sigma_sample; 
   vector<lower=0>[N_type] sigma_holders;
-
+  
   vector<lower=0>[N_size] sigma_size;
 
   vector[N_type] z_types; 

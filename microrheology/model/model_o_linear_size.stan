@@ -33,14 +33,7 @@ parameters {
   vector[N_holder] z_holders; 
   vector[N_sample] z_samples;
 
-  //vector[N_type] alpha;
-  //vector[N_type] beta;
-
-  //real alpha;
-  //real beta;
-
   vector[N_type] alpha;
-  vector[N_type] beta;
 
   // real<lower=0> sigma_mu;
   // real<lower=0> sigma_sigma;
@@ -66,14 +59,16 @@ model{
   sigma_bead ~ std_normal(); //
 
   alpha ~ std_normal();
-  beta ~ std_normal();
 
   z_types ~ std_normal();
   z_samples ~ std_normal();
   z_holders ~ std_normal();
 
+  z_bead ~ std_normal(); //
+
   // sigma_mu ~  normal(1,0.1);
   // sigma_sigma ~ normal(2,0.1);
+
   sigma_common ~ inv_gamma(1,2);
 
   y ~ normal(mu_type+mu_sample+mu_holder + mu_size + mu_bead, sigma_common[track_id_ids]);
