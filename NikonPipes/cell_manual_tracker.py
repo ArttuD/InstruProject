@@ -136,7 +136,6 @@ class manual_tracker():
                 self.pts_dict[self.spheroid_object_num] = []
 
             self.n_clicks += 1                      
-            
             self.pts.append([int(x*self.converter),int(y*self.converter), self.z_start, self.t_start, self.k])
 
             if (self.n_clicks == 1) & (self.round == "protrusion"):
@@ -173,6 +172,8 @@ class manual_tracker():
                 else:
                     self.cell_object_num -= 1
             elif (self.round == "protrusion"):
+                self.pts = []
+                self.n_clicks = 0
                 last_key = list(self.pts_dict)[-1]
                 removed_tuple = self.pts_dict.pop(last_key)
             else:
@@ -192,7 +193,9 @@ class manual_tracker():
     def re_show(self):
 
         for current_key in self.pts_dict.keys():
+
             pts = self.pts_dict[current_key]
+
             if self.round == "cells":
                 self.img_moc = cv2.circle(self.img_moc, pts[0][0][:2], radius=5, color=(0, 255, 255), thickness=-1)
             elif self.round == "protrusion":

@@ -7,7 +7,7 @@ import cv2
 from tools.func import *
 from sklearn.cluster import DBSCAN
 from nd2reader import ND2Reader
-from tools.MTT.track_manager import TrackManager
+from tools.MTT_o.track_manager import TrackManager
 
 
 import argparse
@@ -19,7 +19,7 @@ class manager():
         self.path = args.path
         self.track_flag = args.track
 
-        self.model_path = "C:/Users/lehto/git/InstruProject/NikonPipes/dataStore/img_store/models/model_final_arttu"
+        self.model_path = "./dataStore/img_store/models/CellposeCustom25k"
         self.meta_path = "./dataStore/metalib.json"
 
         vid_parts = os.path.split(self.path)
@@ -208,7 +208,7 @@ class detector():
         self.channels = channels
         self.model = models.CellposeModel(gpu=True, pretrained_model=model_path)
 
-        self.diameter =  50#self.model.diam_labels
+        self.diameter =  45 #self.model.diam_labels
         self.dn = denoise.DenoiseModel(gpu=True, model_type="deblur_cyto3",diam_mean=self.diameter)
 
     def NormalizeData(self, data):
@@ -290,8 +290,9 @@ class Tracker():
     def pipe(self):
 
         for tags, data_location in self.df.groupby(["location"]):
-            self.tracker_obj = TrackManager(min_count=5,max_count=6, gating = 150, gating_= 200)
-
+            #self.tracker_obj = TrackManager(min_count=5,max_count=6, gating = 150, gating_= 100)
+            self.tracker_obj = TrackManager(min_count=5,max_count=6, gating_spawn = 150, gating_far= 100)
+            
             data_location = data_location.reset_index(drop = True)
             tags = tags[0]
 
@@ -322,10 +323,13 @@ class Tracker():
                 data_stamp = data_stamp.reset_index(drop = True)
                 data_stamp["labels"] = 1
                 data_stamp["dummy"] = 1
+
                 dets = data_stamp[["x", "y", "z", "labels", "dummy"]].values
-                self.tracker_obj.update(dets, tags_, np.zeros(data_stamp.shape[0])) 
+                self.tracker_obj.update(dets, tags_) 
+
                 img = self.draw_tracks(self.tracker_obj.trackers, frames[-1])
-                frames[-1] = img 
+                frames[-1] = img
+
 
 
                 #plt.imshow( frames[-1])
@@ -386,10 +390,12 @@ if __name__ == "__main__":
     #Save arguments
     args = parser.parse_known_args()[0]
 
-    #process = manager(args)
-    #success = process.pipe()
-    tr = Tracker(args.path)
-    tr.pipe()
+    process = manager(args)
+    success = process.pipe()
+
+    #tr = Tracker(args.path)
+    #print("inititated")
+    #tr.pipe()
 
     print("Done")
     exit()

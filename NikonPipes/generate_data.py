@@ -49,9 +49,7 @@ class Collect_Data():
 
         self.collect_folders()
 
-        #self.spheroid_info = pd.read_csv('./dataStore/ExpDesign2_.csv')  
-        #with open(r"./dataStore/ExpDesig2ID_.pkl", "rb") as input_file:
-        #    self.cntDict = pickle.load(input_file)
+
 
     def collect_folders(self):
 
@@ -80,11 +78,16 @@ class Collect_Data():
         self.paths_single_vector += glob.glob("J:/instru_projects/TimeLapses/u-wells/*/*/data_vector_results.csv")
 
     def worker(self):
-
-        self.matched_measurements = self.match_mesurements()
-        self.spheroid_info, self.cntDict  = self.parse_spheroids()
+        pass
+        #self.matched_measurements = self.match_mesurements()
+        #self.spheroid_info, self.cntDict  = self.parse_spheroids()
 
     def generate_plots(self):
+
+        self.spheroid_info = pd.read_csv('./dataStore/ExpDesign2_.csv')  
+        with open(r"./dataStore/ExpDesig2ID_.pkl", "rb") as input_file:
+            self.cntDict = pickle.load(input_file)
+
         self.single_info = self.parse_single_tracks()
         self.vector_info = self.process_vector()
 
@@ -187,7 +190,7 @@ class Collect_Data():
                 df["well_id"] = np.arange(init_length)
                 df["measurement_id"] = meas_run
             else: 
-                clustering = DBSCAN(eps=1400, min_samples=1).fit(df[["x", "y"]].values)
+                clustering = DBSCAN(eps=1000, min_samples=1).fit(df[["x", "y"]].values)
                 df["well_id"] = clustering.labels_
                 df["measurement_id"] = meas_run
 
@@ -416,7 +419,7 @@ class Collect_Data():
                 df_sp.append(self.parse_single(data))
 
             print("Cells processed: ",global_counter,"/",len(self.paths_single_track)-1)
-            pd.concat(df_sp).to_csv('./dataStore/ExpDesign2_single_.csv', index=False)  
+            pd.concat(df_sp).to_csv('./dataStore/ExpDesign2_single_2.csv', index=False)  
 
         df = pd.concat(df_sp)
 
@@ -564,7 +567,7 @@ class Collect_Data():
                 df_vector.append(self.parse_vector(data))
 
             print("Cells processed: ",global_counter,"/",len(self.paths_single_vector)-1)
-            pd.concat(df_vector).to_csv('./dataStore/ExpDesign2_vector_.csv', index=False)  
+            pd.concat(df_vector).to_csv('./dataStore/ExpDesign2_vector_2.csv', index=False)  
 
         df_vector = pd.concat(df_vector)
 
@@ -621,5 +624,6 @@ class Collect_Data():
 
 if __name__ == "__main__":
     host = Collect_Data()
-    host.worker()
+    host.generate_plots()
+    #host.worker()
     #host.save()

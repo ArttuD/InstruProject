@@ -38,7 +38,7 @@ class IMMTrack(Track):
         kf_RW.P *= 1e2
         kf_RW.P[5:,5:] *= 10
         # measurement uncertainty (x,y,z,v,i) microm
-        kf_RW.R = np.diag([1,1,1,1,1])*1e-2
+        kf_RW.R = np.diag([1,1,1,1,1])*1e-1
 
         kf_RW.Q *= 1.
         kf_RW.Q[[5,6,7,8,9,10],[5,6,7,8,9,10]] *= 5.
