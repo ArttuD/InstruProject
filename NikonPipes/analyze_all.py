@@ -127,7 +127,7 @@ parser.add_argument('--blur','-b',required=False,default= [[]], help='blurred im
 #Save arguments
 args = parser.parse_known_args()[0]
 
-otsu_list = args.blur
+otsu_list = args.blur # .astype [[0,1,2,3]]
 otsu_list_counter = 0
 otsu_flag = False
 

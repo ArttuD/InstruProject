@@ -6,10 +6,14 @@ import json
 
 import seaborn as sns
 import matplotlib.pyplot as plt
+
+# %%
+paths = glob.glob("F:/instru_projects/rheology/microrheology/paper_*/Alg*/*/results/*_ref_*.csv")
+print(paths)
 #%%
 
-paths = glob.glob("H:/instru_projects/rheology/microrheology/paper_*/Alg*/*/results/*_ID_*.csv")
- 
+paths = glob.glob("F:/instru_projects/rheology/microrheology/paper_*/Alg*/*/results/*_ref_*.csv")
+df_micro =[]
 for i in range(len(paths)):
 
     current = paths[i]
@@ -30,13 +34,11 @@ for i in range(len(paths)):
     df_tmp["size"] = int(parts_2[1][:-2])
     df_tmp["coating"] = parts_2[2]
     df_tmp["type"] = current.split("\\")[2]
-
-    if i == 0:
-        df_micro = df_tmp
-    else:
-        df_micro = pd.concat((df_micro, df_tmp))
+    print(i, "; ", df_tmp.shape)
+    df_micro.append(df_tmp)
  
-df_micro.to_csv("./dataStore/datas_2.csv")
+df_micro = pd.concat(df_micro)
+df_micro.to_csv("./dataStore/datas_all.csv")
 
 
 #%%
